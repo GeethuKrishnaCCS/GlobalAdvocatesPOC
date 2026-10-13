@@ -1,0 +1,24 @@
+{
+  "client": "AdvocateDocs-POC",
+  "integrationBranch": "main",
+  "protectedBranches": ["main"],
+  "testMarker": "ADVTest",
+  "allowLocalMerge": false,
+  "entraClientId": "3b743391-a685-4704-b2ef-ae8dda3499bc",
+  "entraCertThumbprint": "A18485A3EED163027C1E17C6E0ADFBFBD430700C",
+  "tenants": {
+    "dev": {
+      "name": "ccsdev01",
+      "tenantId": "20e5d750-9ba4-44bf-a219-f361c9bfe523",
+      "url": "https://ccsdev01.sharepoint.com",
+      "solutionSite": "https://ccsdev01.sharepoint.com/sites/ADVTestDocs",
+      "hubSites": []
+    },
+    "prod": {
+      "name": "",
+      "url": "",
+      "solutionSite": "",
+      "hubSites": []
+    }
+  }
+}
