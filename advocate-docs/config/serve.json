@@ -1,0 +1,26 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/spfx-serve.schema.json",
+  "port": 4321,
+  "https": true,
+  "serveConfigurations": {
+    "default": {
+      "pageUrl": "https://ccsdev01.sharepoint.com/sites/ADVTestDocs/ADVTestDocuments/Forms/AllItems.aspx",
+      "customActions": {
+        "474974a6-76ee-4efa-9e8b-80bc77bbb7ec": {
+          "location": "ClientSideExtension.ListViewCommandSet",
+          "properties": {}
+        }
+      }
+    },
+    "docActions": {
+      "pageUrl": "https://ccsdev01.sharepoint.com/sites/ADVTestDocs/ADVTestDocuments/Forms/AllItems.aspx",
+      "customActions": {
+        "474974a6-76ee-4efa-9e8b-80bc77bbb7ec": {
+          "location": "ClientSideExtension.ListViewCommandSet",
+          "properties": {}
+        }
+      }
+    }
+  }
+}
+

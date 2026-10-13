@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Elements xmlns="http://schemas.microsoft.com/sharepoint/">
+    <!-- RegistrationId 101 = document libraries; Location covers command bar + context menu -->
+    <CustomAction
+        Title="DocActions"
+        RegistrationId="101"
+        RegistrationType="List"
+        Location="ClientSideExtension.ListViewCommandSet"
+        ClientSideComponentId="474974a6-76ee-4efa-9e8b-80bc77bbb7ec"
+        ClientSideComponentProperties="{}">
+    </CustomAction>
+</Elements>

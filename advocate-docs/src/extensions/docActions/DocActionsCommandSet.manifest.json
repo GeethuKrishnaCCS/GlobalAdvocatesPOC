@@ -1,0 +1,33 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx/command-set-extension-manifest.schema.json",
+
+  "id": "474974a6-76ee-4efa-9e8b-80bc77bbb7ec",
+  "alias": "DocActionsCommandSet",
+  "componentType": "Extension",
+  "extensionType": "ListViewCommandSet",
+
+  // The "*" signifies that the version should be taken from the package.json
+  "version": "*",
+  "manifestVersion": 2,
+
+  "requiresCustomScript": false,
+
+  "items": {
+    "PREVIEW": {
+      "title": { "default": "Preview" },
+      "type": "command"
+    },
+    "MERGE": {
+      "title": { "default": "Merge to PDF" },
+      "type": "command"
+    },
+    "EMAIL_PDF": {
+      "title": { "default": "Email as PDF" },
+      "type": "command"
+    },
+    "EMAIL_VERSION": {
+      "title": { "default": "Email specific version" },
+      "type": "command"
+    }
+  }
+}

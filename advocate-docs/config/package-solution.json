@@ -1,0 +1,50 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/spfx-build/package-solution.schema.json",
+  "solution": {
+    "name": "advocate-docs-client-side-solution",
+    "id": "155599bd-3e80-4827-b392-2e152685c72c",
+    "version": "1.0.0.0",
+    "includeClientSideAssets": true,
+    "isDomainIsolated": false,
+    "webApiPermissionRequests": [
+      { "resource": "Microsoft Graph", "scope": "Files.ReadWrite.All" },
+      { "resource": "Microsoft Graph", "scope": "Mail.ReadWrite" }
+    ],
+    "developer": {
+      "name": "",
+      "websiteUrl": "",
+      "privacyUrl": "",
+      "termsOfUseUrl": "",
+      "mpnId": "Undefined-1.23.2"
+    },
+    "metadata": {
+      "shortDescription": {
+        "default": "Advocate firm document actions POC: preview, merge to PDF with index, email as PDF / specific version."
+      },
+      "longDescription": {
+        "default": "Advocate firm document actions POC: preview, merge to PDF with index, email as PDF / specific version."
+      },
+      "screenshotPaths": [],
+      "videoUrl": "",
+      "categories": []
+    },
+    "features": [
+      {
+        "title": "Application Extension - Deployment of custom action",
+        "description": "Deploys a custom action with ClientSideComponentId association",
+        "id": "37d2f30b-b83e-4882-accb-3bcbd17bb6a4",
+        "version": "1.0.0.0",
+        "assets": {
+          "elementManifests": [
+            "elements.xml",
+            "ClientSideInstance.xml"
+          ]
+        }
+      }
+    ]
+  },
+  "paths": {
+    "zippedPackage": "solution/advocate-docs.sppkg"
+  }
+}
+
