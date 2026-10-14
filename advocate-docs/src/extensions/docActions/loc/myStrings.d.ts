@@ -1,7 +1,6 @@
 declare interface IDocActionsCommandSetStrings {
   Preview: string;
   CreateBundle: string;
-  EmailVersion: string;
   NotAvailableYet: string;
 
   Close: string;
@@ -42,10 +41,21 @@ declare interface IDocActionsCommandSetStrings {
   BackToBundle: string;
   FoundSummary: string;
   ResultTruncated: string;
-  AddDocuments: string;
+  AddSelected: string;
+  SelectAllResults: string;
+  FinderResultsLabel: string;
+  PickDocument: string;
+  InBundle: string;
+  SendGroup: string;
+  BundleGroup: string;
+  Send: string;
+  SendAsPdf: string;
+  SendVersion: string;
+  SendVersionAs: string;
 }
 
 declare module 'DocActionsCommandSetStrings' {
   const strings: IDocActionsCommandSetStrings;
   export = strings;
 }
+

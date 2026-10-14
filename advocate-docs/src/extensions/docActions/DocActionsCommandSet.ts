@@ -26,7 +26,10 @@ const LOG_SOURCE: string = 'DocActionsCommandSet';
 const enum CommandId {
   Preview = 'PREVIEW',
   CreateBundle = 'CREATE_BUNDLE',
-  EmailVersion = 'EMAIL_VERSION'
+  Send = 'SEND',
+  SendAsPdf = 'SEND_AS_PDF',
+  SendVersion = 'SEND_VERSION',
+  SendVersionAs = 'SEND_VERSION_AS'
 }
 
 /** Library kinds the commands care about; anything else shows no commands. */
@@ -58,8 +61,17 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
       case CommandId.CreateBundle:
         this._openBundleBuilder();
         break;
-      case CommandId.EmailVersion:
-        this._notAvailableYet(strings.EmailVersion);
+      case CommandId.Send:
+        this._notAvailableYet(strings.Send);
+        break;
+      case CommandId.SendAsPdf:
+        this._notAvailableYet(strings.SendAsPdf);
+        break;
+      case CommandId.SendVersion:
+        this._notAvailableYet(strings.SendVersion);
+        break;
+      case CommandId.SendVersionAs:
+        this._notAvailableYet(strings.SendVersionAs);
         break;
       default:
         throw new Error(`Unknown command: ${event.itemId}`);
@@ -115,7 +127,11 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
     this._setVisible(CommandId.Preview, inMatterLibrary && selectedCount >= 1);
     // No selection needed: documents can be added by folder, filter or search inside the builder.
     this._setVisible(CommandId.CreateBundle, kind === LibraryKind.Documents);
-    this._setVisible(CommandId.EmailVersion, inMatterLibrary && selectedCount === 1);
+    // Current version: one or more documents in one email. Previous version: exactly one document.
+    this._setVisible(CommandId.Send, inMatterLibrary && selectedCount >= 1);
+    this._setVisible(CommandId.SendAsPdf, inMatterLibrary && selectedCount >= 1);
+    this._setVisible(CommandId.SendVersion, inMatterLibrary && selectedCount === 1);
+    this._setVisible(CommandId.SendVersionAs, inMatterLibrary && selectedCount === 1);
   }
 
   private _setVisible(id: CommandId, visible: boolean): void {
@@ -125,7 +141,7 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
     }
   }
 
-  // Placeholder until the email slice lands (task.md slice 4).
+  // Placeholder until the send slice lands (task.md slice 4; needs Graph Mail.ReadWrite approval).
   private _notAvailableYet(feature: string): void {
     Dialog.alert(format(strings.NotAvailableYet, feature)).catch((error: Error) => {
       Log.error(LOG_SOURCE, error);

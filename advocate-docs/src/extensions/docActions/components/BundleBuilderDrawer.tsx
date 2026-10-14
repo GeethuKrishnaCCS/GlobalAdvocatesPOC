@@ -44,6 +44,9 @@ export const BundleBuilderDrawer: React.FC<IBundleBuilderDrawerProps> = props =>
   const draft = useBundleDraft(documents);
   const [isAdding, setIsAdding] = React.useState<boolean>(documents.length === 0);
   const [lastAdded, setLastAdded] = React.useState<number | undefined>(undefined);
+  /** Result being previewed while picking documents in the finder. */
+  const [finderPreview, setFinderPreview] = React.useState<ISelectedDocument | undefined>(undefined);
+  const previewDocument: ISelectedDocument | undefined = isAdding ? finderPreview : draft.computed.highlighted;
 
   const existingIds: ReadonlySet<string> = React.useMemo(
     () => new Set(draft.state.documents.map(d => d.uniqueId.toLowerCase())),
@@ -52,6 +55,7 @@ export const BundleBuilderDrawer: React.FC<IBundleBuilderDrawerProps> = props =>
 
   const onAdd = (docs: ReadonlyArray<ISelectedDocument>): void => {
     setLastAdded(draft.actions.addMany(docs));
+    setFinderPreview(undefined);
     setIsAdding(false);
   };
 
@@ -70,7 +74,8 @@ export const BundleBuilderDrawer: React.FC<IBundleBuilderDrawerProps> = props =>
       <DrawerBody className={styles.body}>
         {isAdding
           ? <AddDocumentsPanel service={queryService} libraryTitle={libraryTitle} existingIds={existingIds}
-              onAdd={onAdd} onBack={() => setIsAdding(false)} />
+              previewId={finderPreview?.uniqueId} onPreview={setFinderPreview}
+              onAdd={onAdd} onBack={() => { setFinderPreview(undefined); setIsAdding(false); }} />
           : (
             <div className={styles.side}>
               <div className={styles.sideHeader}>
@@ -90,7 +95,7 @@ export const BundleBuilderDrawer: React.FC<IBundleBuilderDrawerProps> = props =>
                 : <BundleDocumentList draft={draft} />}
             </div>
           )}
-        <DocumentPreviewPane webAbsoluteUrl={webAbsoluteUrl} document={draft.computed.highlighted} />
+        <DocumentPreviewPane webAbsoluteUrl={webAbsoluteUrl} document={previewDocument} />
       </DrawerBody>
       <DrawerFooter className={styles.footer}>
         <Tooltip content={strings.BuildNotConnected} relationship="description">

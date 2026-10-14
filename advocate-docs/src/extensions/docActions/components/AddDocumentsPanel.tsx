@@ -6,36 +6,37 @@ import * as strings from 'DocActionsCommandSetStrings';
 import type { DocumentQueryService } from '../services/DocumentQueryService';
 import { MAX_RESULTS } from '../services/DocumentQueryService';
 import { useDocumentFinder, type FinderMode } from '../hooks/useDocumentFinder';
+import { useResultSelection } from '../hooks/useResultSelection';
 import type { ISelectedDocument } from '../models/ISelectedDocument';
 import { FolderBrowser } from './FolderBrowser';
 import { FilterFields } from './FilterFields';
+import { FinderResultList } from './FinderResultList';
 import { format } from '../utils/format';
 
 export interface IAddDocumentsPanelProps {
   service: DocumentQueryService;
   libraryTitle: string;
-  /** Unique ids already in the bundle, to count what is new. */
+  /** Unique ids (lower case) already in the bundle. */
   existingIds: ReadonlySet<string>;
+  previewId: string | undefined;
+  onPreview: (doc: ISelectedDocument) => void;
   onAdd: (docs: ReadonlyArray<ISelectedDocument>) => void;
   onBack: () => void;
 }
 
 const useStyles = makeStyles({
   root: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalM, minHeight: 0, overflowY: 'auto' },
-  result: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS },
+  result: { display: 'flex', flexDirection: 'column', gap: tokens.spacingVerticalS, minHeight: 0 },
   actions: { display: 'flex', gap: tokens.spacingHorizontalS, flexWrap: 'wrap' }
 });
 
-/** Adds documents to the bundle by folder, metadata filter or search — beyond what the view selection can reach. */
-export const AddDocumentsPanel: React.FC<IAddDocumentsPanelProps> = ({ service, libraryTitle, existingIds, onAdd, onBack }) => {
+/** Finds documents by folder, filter or search; the user picks individual results (or all) to add. */
+export const AddDocumentsPanel: React.FC<IAddDocumentsPanelProps> = props => {
+  const { service, libraryTitle, existingIds, previewId, onPreview, onAdd, onBack } = props;
   const styles = useStyles();
   const finder = useDocumentFinder(service);
   const { state, actions, computed } = finder;
-
-  const fresh: ISelectedDocument[] = React.useMemo(
-    () => (state.result?.documents ?? []).filter(d => !existingIds.has(d.uniqueId.toLowerCase())),
-    [state.result, existingIds]
-  );
+  const selection = useResultSelection(state.result?.documents, existingIds);
 
   const onFind = (): void => { actions.find().catch(() => undefined); };
 
@@ -67,11 +68,17 @@ export const AddDocumentsPanel: React.FC<IAddDocumentsPanelProps> = ({ service, 
       )}
       {state.result && (
         <div className={styles.result} data-testid="add-documents-result">
-          <Body1>{format(strings.FoundSummary, state.result.documents.length, fresh.length)}</Body1>
+          <Body1>{format(strings.FoundSummary, state.result.documents.length, selection.computed.selectable.length)}</Body1>
           {state.result.truncated && <Caption1 data-testid="add-documents-truncated">{format(strings.ResultTruncated, MAX_RESULTS)}</Caption1>}
+          {state.result.documents.length > 0 && (
+            <FinderResultList results={state.result.documents} existingIds={existingIds} selection={selection}
+              previewId={previewId} onPreview={onPreview} />
+          )}
           <div className={styles.actions}>
-            <Button appearance="primary" disabled={fresh.length === 0} onClick={() => onAdd(fresh)}
-              data-testid="add-documents-add">{format(strings.AddDocuments, fresh.length)}</Button>
+            <Button appearance="primary" disabled={selection.computed.selected.length === 0}
+              onClick={() => onAdd(selection.computed.selected)} data-testid="add-documents-add">
+              {format(strings.AddSelected, selection.computed.selected.length)}
+            </Button>
           </div>
         </div>
       )}

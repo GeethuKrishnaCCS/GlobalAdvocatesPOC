@@ -2,7 +2,6 @@ define([], function() {
   return {
     "Preview": "Preview",
     "CreateBundle": "Create bundle",
-    "EmailVersion": "Email version",
     "NotAvailableYet": "{0} is not available in this POC build yet.",
 
     "Close": "Close",
@@ -43,6 +42,17 @@ define([], function() {
     "BackToBundle": "Back to bundle",
     "FoundSummary": "{0} documents found, {1} not yet in the bundle.",
     "ResultTruncated": "Only the first {0} documents are shown. Narrow the folder, filter or search.",
-    "AddDocuments": "Add {0} documents"
+    "AddSelected": "Add {0} selected",
+    "SelectAllResults": "Select all ({0})",
+    "FinderResultsLabel": "Found documents",
+    "PickDocument": "Select {0}",
+    "InBundle": "In bundle",
+    "SendGroup": "Send",
+    "BundleGroup": "Bundle",
+    "Send": "Send",
+    "SendAsPdf": "Send as PDF",
+    "SendVersion": "Send previous version",
+    "SendVersionAs": "Send previous version as PDF"
   }
 });
+
