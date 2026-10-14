@@ -4,6 +4,7 @@
         Title="DocActions"
         Location="ClientSideExtension.ListViewCommandSet"
         ListTemplateId="101"
-        Properties="{}"
+        Properties="{&quot;documentsLibrary&quot;:&quot;ADVTestDocuments&quot;,&quot;bundlesLibrary&quot;:&quot;ADVTestBundles&quot;}"
         ComponentId="474974a6-76ee-4efa-9e8b-80bc77bbb7ec" />
 </Elements>
+

@@ -4,23 +4,24 @@
   "https": true,
   "serveConfigurations": {
     "default": {
-      "pageUrl": "https://ccsdev01.sharepoint.com/sites/ADVTestDocs/ADVTestDocuments/Forms/AllItems.aspx",
+      "pageUrl": "https://ccsdev01.sharepoint.com/sites/ADVTestMatter01/ADVTestDocuments/Forms/AllItems.aspx",
       "customActions": {
         "474974a6-76ee-4efa-9e8b-80bc77bbb7ec": {
           "location": "ClientSideExtension.ListViewCommandSet",
-          "properties": {}
+          "properties": { "documentsLibrary": "ADVTestDocuments", "bundlesLibrary": "ADVTestBundles" }
         }
       }
     },
     "docActions": {
-      "pageUrl": "https://ccsdev01.sharepoint.com/sites/ADVTestDocs/ADVTestDocuments/Forms/AllItems.aspx",
+      "pageUrl": "https://ccsdev01.sharepoint.com/sites/ADVTestMatter01/ADVTestDocuments/Forms/AllItems.aspx",
       "customActions": {
         "474974a6-76ee-4efa-9e8b-80bc77bbb7ec": {
           "location": "ClientSideExtension.ListViewCommandSet",
-          "properties": {}
+          "properties": { "documentsLibrary": "ADVTestDocuments", "bundlesLibrary": "ADVTestBundles" }
         }
       }
     }
   }
 }
+
 

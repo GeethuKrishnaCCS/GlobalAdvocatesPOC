@@ -7,6 +7,7 @@
         RegistrationType="List"
         Location="ClientSideExtension.ListViewCommandSet"
         ClientSideComponentId="474974a6-76ee-4efa-9e8b-80bc77bbb7ec"
-        ClientSideComponentProperties="{}">
+        ClientSideComponentProperties="{&quot;documentsLibrary&quot;:&quot;ADVTestDocuments&quot;,&quot;bundlesLibrary&quot;:&quot;ADVTestBundles&quot;}">
     </CustomAction>
 </Elements>
+

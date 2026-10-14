@@ -1,9 +1,48 @@
 define([], function() {
   return {
     "Preview": "Preview",
-    "Merge": "Merge to PDF",
-    "EmailPdf": "Email as PDF",
-    "EmailVersion": "Email specific version",
-    "NotAvailableYet": "{0} is not available in this POC build yet."
+    "CreateBundle": "Create bundle",
+    "EmailVersion": "Email version",
+    "NotAvailableYet": "{0} is not available in this POC build yet.",
+
+    "Close": "Close",
+    "Next": "Next document",
+    "Previous": "Previous document",
+    "PreviewPosition": "{0} of {1}",
+    "PreviewFrameTitle": "Preview of {0}",
+    "PreviewLoading": "Loading preview",
+    "NothingToPreview": "Select a document to preview it.",
+
+    "BundleBuilderTitle": "Create bundle",
+    "SelectionSummary": "{0} of {1} loaded rows selected",
+    "DocumentCount": "{0} documents in bundle",
+    "BuildBundle": "Build bundle",
+    "BuildNotConnected": "The bundle service isn't connected in this build.",
+    "DocumentActions": "Actions for {0}",
+    "MoveUp": "Move up",
+    "MoveDown": "Move down",
+    "RemoveFromBundle": "Remove from bundle",
+    "NoDocuments": "No documents in the bundle yet. Add documents by folder, filter or search.",
+
+    "AddDocumentsButton": "Add documents",
+    "AddedSummary": "{0} documents added.",
+    "ModeFolder": "Folder",
+    "ModeFilter": "Filter",
+    "ModeSearch": "Search",
+    "FolderPathLabel": "Folder path",
+    "FolderWithCount": "{0} ({1})",
+    "NoSubfolders": "No subfolders here.",
+    "IncludeSubfolders": "Include subfolders",
+    "FilterDocType": "Document type",
+    "FilterDateFrom": "Document date from",
+    "FilterDateTo": "Document date to",
+    "FilterFileTypes": "File types",
+    "SearchLabel": "Search in name and content",
+    "SearchHint": "Recently uploaded documents can take a few minutes to appear in search.",
+    "FindDocuments": "Find documents",
+    "BackToBundle": "Back to bundle",
+    "FoundSummary": "{0} documents found, {1} not yet in the bundle.",
+    "ResultTruncated": "Only the first {0} documents are shown. Narrow the folder, filter or search.",
+    "AddDocuments": "Add {0} documents"
   }
 });

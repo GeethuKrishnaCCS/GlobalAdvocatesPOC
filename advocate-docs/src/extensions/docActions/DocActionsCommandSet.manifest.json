@@ -17,16 +17,12 @@
       "title": { "default": "Preview" },
       "type": "command"
     },
-    "MERGE": {
-      "title": { "default": "Merge to PDF" },
-      "type": "command"
-    },
-    "EMAIL_PDF": {
-      "title": { "default": "Email as PDF" },
+    "CREATE_BUNDLE": {
+      "title": { "default": "Create bundle" },
       "type": "command"
     },
     "EMAIL_VERSION": {
-      "title": { "default": "Email specific version" },
+      "title": { "default": "Email version" },
       "type": "command"
     }
   }
