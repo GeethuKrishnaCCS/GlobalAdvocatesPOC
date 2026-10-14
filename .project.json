@@ -11,8 +11,13 @@
       "name": "ccsdev01",
       "tenantId": "20e5d750-9ba4-44bf-a219-f361c9bfe523",
       "url": "https://ccsdev01.sharepoint.com",
-      "solutionSite": "https://ccsdev01.sharepoint.com/sites/ADVTestDocs",
-      "hubSites": []
+      "solutionSite": "https://ccsdev01.sharepoint.com/sites/ADVTestMatter01",
+      "hubSites": [],
+      "azure": {
+        "account": "dev01@ccsdev01.onmicrosoft.com",
+        "subscriptionId": "",
+        "resourceGroup": ""
+      }
     },
     "prod": {
       "name": "",
