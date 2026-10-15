@@ -71,9 +71,27 @@ define([], function() {
     "SavedBundles": "Saved bundles",
     "BundleOptionMeta": "{0} documents · {1}",
     "AddToBundleResult": "{0} added to '{1}'. Already in the bundle: {2}.",
-    "AddToBundleConfirm": "Add {0} documents"
+    "AddToBundleConfirm": "Add {0} documents",
+    "SendSubjectMore": "{0} and {1} more",
+    "SendBodyIntro": "Please find the attached documents.",
+    "SendBodyLinks": "These documents are too large to attach and are shared as links:",
+    "SendStatusWaiting": "Waiting",
+    "SendStatusWorking": "Preparing",
+    "SendStatusAttached": "Attached",
+    "SendStatusLinked": "Added as link",
+    "SendStatusFailed": "Failed",
+    "SendPickVersion": "Version of {0} to send",
+    "SendLoadingVersions": "Loading versions",
+    "SendVersionOption": "Version {0} · {1} · {2}",
+    "SendCurrentVersion": "(current)",
+    "SendProgressLabel": "Documents in this email",
+    "SendResult": "Draft created: {0} attached, {1} added as links, {2} failed. Add recipients and send it from Outlook.",
+    "SendDesktopNote": "The draft is also in your Drafts folder in Outlook for desktop.",
+    "SendOpenOutlook": "Open in Outlook",
+    "SendCreateDraft": "Create draft"
   }
 });
+
 
 
 

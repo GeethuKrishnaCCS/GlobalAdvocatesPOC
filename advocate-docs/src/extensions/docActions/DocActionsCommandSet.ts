@@ -5,11 +5,8 @@ import {
   type Command,
   type IListViewCommandSetExecuteEventParameters
 } from '@microsoft/sp-listview-extensibility';
-import { Dialog } from '@microsoft/sp-dialog';
-import * as strings from 'DocActionsCommandSetStrings';
 import { PanelHost } from './utils/panelHost';
 import { toSelectedDocuments } from './utils/documentMapper';
-import { format } from './utils/format';
 import { PreviewDialog } from './components/PreviewDialog';
 import { BundleBuilderDrawer } from './components/BundleBuilderDrawer';
 import { DocumentQueryService } from './services/DocumentQueryService';
@@ -17,6 +14,10 @@ import { BundleService } from './services/BundleService';
 import { BundlePickerDialog } from './components/BundlePickerDialog';
 import type { IBundle } from './models/IBundle';
 import type { ISelectedDocument } from './models/ISelectedDocument';
+import type { ISendRequest } from './models/ISend';
+import { GraphFileService } from './services/GraphFileService';
+import { MailDraftService } from './services/MailDraftService';
+import { SendDialog } from './components/SendDialog';
 
 /** ClientSideComponentProperties: URL names (not titles) of the matter site libraries and lists. */
 export interface IDocActionsCommandSetProperties {
@@ -80,16 +81,16 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
         this._openBundlePicker('add', toSelectedDocuments(this.context.listView.selectedRows ?? []));
         break;
       case CommandId.Send:
-        this._notAvailableYet(strings.Send);
+        this._openSend({ mode: 'current', asPdf: false });
         break;
       case CommandId.SendAsPdf:
-        this._notAvailableYet(strings.SendAsPdf);
+        this._openSend({ mode: 'current', asPdf: true });
         break;
       case CommandId.SendVersion:
-        this._notAvailableYet(strings.SendVersion);
+        this._openSend({ mode: 'version', asPdf: false });
         break;
       case CommandId.SendVersionAs:
-        this._notAvailableYet(strings.SendVersionAs);
+        this._openSend({ mode: 'version', asPdf: true });
         break;
       default:
         throw new Error(`Unknown command: ${event.itemId}`);
@@ -183,11 +184,23 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
     }
   }
 
-  // Placeholder until the send slice lands (task.md slice 4; needs Graph Mail.ReadWrite approval).
-  private _notAvailableYet(feature: string): void {
-    Dialog.alert(format(strings.NotAvailableYet, feature)).catch((error: Error) => {
-      Log.error(LOG_SOURCE, error);
-    });
+  /** Outlook draft with the selected documents (Graph, delegated Files.ReadWrite.All + Mail.ReadWrite). */
+  private _openSend(request: ISendRequest): void {
+    const documents: ISelectedDocument[] = toSelectedDocuments(this.context.listView.selectedRows ?? []);
+    const listId: string = this.context.listView.list?.guid.toString() ?? '';
+    const { site, web } = this.context.pageContext;
+    const host: string = new URL(web.absoluteUrl).hostname;
+    this.context.msGraphClientFactory.getClient('3')
+      .then(graph => {
+        const files: GraphFileService = new GraphFileService(graph, `${host},${site.id.toString()},${web.id.toString()}`, listId);
+        this._panels.open(close => React.createElement(SendDialog, {
+          files, mail: new MailDraftService(graph), documents, request,
+          webOrigin: new URL(web.absoluteUrl).origin,
+          locale: this.context.pageContext.cultureInfo.currentUICultureName,
+          onClose: close
+        }));
+      })
+      .catch((error: Error) => Log.error(LOG_SOURCE, error));
   }
 }
 

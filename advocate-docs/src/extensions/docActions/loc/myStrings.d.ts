@@ -71,11 +71,29 @@ declare interface IDocActionsCommandSetStrings {
   BundleOptionMeta: string;
   AddToBundleResult: string;
   AddToBundleConfirm: string;
+  SendSubjectMore: string;
+  SendBodyIntro: string;
+  SendBodyLinks: string;
+  SendStatusWaiting: string;
+  SendStatusWorking: string;
+  SendStatusAttached: string;
+  SendStatusLinked: string;
+  SendStatusFailed: string;
+  SendPickVersion: string;
+  SendLoadingVersions: string;
+  SendVersionOption: string;
+  SendCurrentVersion: string;
+  SendProgressLabel: string;
+  SendResult: string;
+  SendDesktopNote: string;
+  SendOpenOutlook: string;
+  SendCreateDraft: string;
 }
 
 declare module 'DocActionsCommandSetStrings' {
   const strings: IDocActionsCommandSetStrings;
   export = strings;
 }
+
 
 
