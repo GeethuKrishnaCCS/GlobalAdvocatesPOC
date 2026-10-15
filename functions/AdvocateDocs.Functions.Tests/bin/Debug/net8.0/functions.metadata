@@ -1,0 +1,207 @@
+[
+  {
+    "name": "StartBundleBuild",
+    "scriptFile": "AdvocateDocs.Functions.dll",
+    "entryPoint": "AdvocateDocs.Functions.Functions.BundleBuildFunctions.Start",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "request",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "post"
+        ],
+        "route": "bundles/build",
+        "properties": {}
+      },
+      {
+        "name": "client",
+        "direction": "In",
+        "type": "durableClient",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "GetBundleBuild",
+    "scriptFile": "AdvocateDocs.Functions.dll",
+    "entryPoint": "AdvocateDocs.Functions.Functions.BundleBuildFunctions.Status",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "request",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "get"
+        ],
+        "route": "bundles/build/{instanceId}",
+        "properties": {}
+      },
+      {
+        "name": "client",
+        "direction": "In",
+        "type": "durableClient",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "Health",
+    "scriptFile": "AdvocateDocs.Functions.dll",
+    "entryPoint": "AdvocateDocs.Functions.Functions.HealthFunctions.Health",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "request",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "get"
+        ],
+        "route": "health",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "Me",
+    "scriptFile": "AdvocateDocs.Functions.dll",
+    "entryPoint": "AdvocateDocs.Functions.Functions.HealthFunctions.Me",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "request",
+        "direction": "In",
+        "type": "httpTrigger",
+        "authLevel": "Anonymous",
+        "methods": [
+          "get"
+        ],
+        "route": "me",
+        "properties": {}
+      },
+      {
+        "name": "$return",
+        "type": "http",
+        "direction": "Out"
+      }
+    ]
+  },
+  {
+    "name": "BuildBundleOrchestrator",
+    "scriptFile": "AdvocateDocs.Functions.dll",
+    "entryPoint": "AdvocateDocs.Functions.Bundles.BuildBundleOrchestrator.Run",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "context",
+        "direction": "In",
+        "type": "orchestrationTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "LoadPlan",
+    "scriptFile": "AdvocateDocs.Functions.dll",
+    "entryPoint": "AdvocateDocs.Functions.Bundles.BundleActivities.LoadPlan",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "ConvertMember",
+    "scriptFile": "AdvocateDocs.Functions.dll",
+    "entryPoint": "AdvocateDocs.Functions.Bundles.BundleActivities.ConvertMember",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "AssembleBundle",
+    "scriptFile": "AdvocateDocs.Functions.dll",
+    "entryPoint": "AdvocateDocs.Functions.Bundles.BundleActivities.AssembleBundle",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  },
+  {
+    "name": "PublishBundle",
+    "scriptFile": "AdvocateDocs.Functions.dll",
+    "entryPoint": "AdvocateDocs.Functions.Bundles.BundleActivities.PublishBundle",
+    "language": "dotnet-isolated",
+    "properties": {
+      "IsCodeless": false
+    },
+    "bindings": [
+      {
+        "name": "input",
+        "direction": "In",
+        "type": "activityTrigger",
+        "properties": {}
+      }
+    ]
+  }
+]

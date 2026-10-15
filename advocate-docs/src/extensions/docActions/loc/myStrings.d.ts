@@ -88,12 +88,24 @@ declare interface IDocActionsCommandSetStrings {
   SendDesktopNote: string;
   SendOpenOutlook: string;
   SendCreateDraft: string;
+  BuildHint: string;
+  BuildSaveFirst: string;
+  BuildStarting: string;
+  BuildProgress: string;
+  BuildStageLoading: string;
+  BuildStageConverting: string;
+  BuildStageAssembling: string;
+  BuildStagePublishing: string;
+  BuildDone: string;
+  BuildOpenPdf: string;
+  BuildFailed: string;
 }
 
 declare module 'DocActionsCommandSetStrings' {
   const strings: IDocActionsCommandSetStrings;
   export = strings;
 }
+
 
 
 

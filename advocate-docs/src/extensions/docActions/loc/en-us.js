@@ -88,9 +88,21 @@ define([], function() {
     "SendResult": "Draft created: {0} attached, {1} added as links, {2} failed. Add recipients and send it from Outlook.",
     "SendDesktopNote": "The draft is also in your Drafts folder in Outlook for desktop.",
     "SendOpenOutlook": "Open in Outlook",
-    "SendCreateDraft": "Create draft"
+    "SendCreateDraft": "Create draft",
+    "BuildHint": "Builds one PDF with an index page and a bundle page number on every page. Takes a few minutes for large bundles.",
+    "BuildSaveFirst": "Save the bundle first; the build uses the saved bundle.",
+    "BuildStarting": "Starting the build...",
+    "BuildProgress": "{0}: {1} of {2} documents",
+    "BuildStageLoading": "Loading the bundle",
+    "BuildStageConverting": "Converting to PDF",
+    "BuildStageAssembling": "Assembling the bundle",
+    "BuildStagePublishing": "Saving to the Bundles library",
+    "BuildDone": "Bundle version {0} built: {1} pages from {2} documents ({3} could not be included).",
+    "BuildOpenPdf": "Open bundle PDF",
+    "BuildFailed": "The build failed: {0}"
   }
 });
+
 
 
 

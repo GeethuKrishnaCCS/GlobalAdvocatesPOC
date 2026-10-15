@@ -3,12 +3,15 @@ import {
   Button, Caption1, DrawerBody, DrawerFooter, DrawerHeader, DrawerHeaderTitle, Field, Input, MessageBar, MessageBarBody,
   OverlayDrawer, Spinner, Tooltip, makeStyles, tokens
 } from '@fluentui/react-components';
-import { Add20Regular, Dismiss20Regular, Save20Regular } from '@fluentui/react-icons';
+import { Add20Regular, Dismiss20Regular, DocumentPdf20Regular, Save20Regular } from '@fluentui/react-icons';
 import * as strings from 'DocActionsCommandSetStrings';
 import type { ISelectedDocument } from '../models/ISelectedDocument';
 import type { IBundle } from '../models/IBundle';
 import type { DocumentQueryService } from '../services/DocumentQueryService';
 import type { BundleService } from '../services/BundleService';
+import type { BundleApiService } from '../services/BundleApiService';
+import { useBundleBuild } from '../hooks/useBundleBuild';
+import { BuildStatusBar } from './BuildStatusBar';
 import { useBundleDraft } from '../hooks/useBundleDraft';
 import { BundleDocumentList } from './BundleDocumentList';
 import { DocumentPreviewPane } from './DocumentPreviewPane';
@@ -24,6 +27,7 @@ export interface IBundleBuilderDrawerProps {
   bundle?: IBundle;
   queryService: DocumentQueryService;
   bundleService: BundleService;
+  buildService: BundleApiService;
   libraryTitle: string;
   onClose: () => void;
 }
@@ -39,9 +43,12 @@ const useStyles = makeStyles({
 
 /** Bundle builder: create or edit a bundle — ordered members (or the finder) left, full preview right. */
 export const BundleBuilderDrawer: React.FC<IBundleBuilderDrawerProps> = props => {
-  const { webAbsoluteUrl, documents, bundle, queryService, bundleService, libraryTitle, onClose } = props;
+  const { webAbsoluteUrl, documents, bundle, queryService, bundleService, buildService, libraryTitle, onClose } = props;
   const styles = useStyles();
   const draft = useBundleDraft(bundleService, documents, bundle);
+  const build = useBundleBuild(buildService);
+  // Builds always use what is saved: unsaved edits must be saved first.
+  const canBuild: boolean = !!draft.state.header && !draft.computed.isDirty && !build.state.isRunning && draft.computed.count > 0;
   const [isAdding, setIsAdding] = React.useState<boolean>(!bundle && documents.length === 0);
   const [notice, setNotice] = React.useState<string | undefined>(undefined);
   const [finderPreview, setFinderPreview] = React.useState<ISelectedDocument | undefined>(undefined);
@@ -90,6 +97,7 @@ export const BundleBuilderDrawer: React.FC<IBundleBuilderDrawerProps> = props =>
                   data-testid="bundle-builder-add">{strings.AddDocumentsButton}</Button>
               </div>
               {notice && <MessageBar intent="success" data-testid="bundle-builder-notice"><MessageBarBody>{notice}</MessageBarBody></MessageBar>}
+              <BuildStatusBar build={build} />
               {draft.state.saveError && (
                 <MessageBar intent="error" layout="multiline" data-testid="bundle-builder-save-error">
                   <MessageBarBody>{draft.state.saveError}</MessageBarBody>
@@ -107,8 +115,10 @@ export const BundleBuilderDrawer: React.FC<IBundleBuilderDrawerProps> = props =>
           disabled={!draft.computed.canSave || draft.state.isSaving} onClick={onSave} data-testid="bundle-builder-save">
           {strings.SaveBundle}
         </Button>
-        <Tooltip content={strings.BuildNotConnected} relationship="description">
-          <Button appearance="secondary" disabledFocusable data-testid="bundle-builder-build">{strings.BuildBundle}</Button>
+        <Tooltip content={canBuild ? strings.BuildHint : strings.BuildSaveFirst} relationship="description">
+          <Button appearance="secondary" icon={<DocumentPdf20Regular />} disabledFocusable={!canBuild}
+            onClick={() => { if (canBuild && draft.state.header) { build.actions.start(draft.state.header.bundleId).catch(() => undefined); } }}
+            data-testid="bundle-builder-build">{strings.BuildBundle}</Button>
         </Tooltip>
         <Caption1 data-testid="bundle-builder-count">{format(strings.DocumentCount, draft.computed.count)}</Caption1>
       </DrawerFooter>

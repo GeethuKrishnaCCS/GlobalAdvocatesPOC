@@ -11,6 +11,7 @@ import { PreviewDialog } from './components/PreviewDialog';
 import { BundleBuilderDrawer } from './components/BundleBuilderDrawer';
 import { DocumentQueryService } from './services/DocumentQueryService';
 import { BundleService } from './services/BundleService';
+import { BundleApiService } from './services/BundleApiService';
 import { BundlePickerDialog } from './components/BundlePickerDialog';
 import type { IBundle } from './models/IBundle';
 import type { ISelectedDocument } from './models/ISelectedDocument';
@@ -27,6 +28,11 @@ export interface IDocActionsCommandSetProperties {
   bundleRegistryList?: string;
   /** Under /Lists/. */
   bundleItemsList?: string;
+  bundleManifestsLibrary?: string;
+  /** AdvocateDocs Function base URL, e.g. https://func-….azurewebsites.net */
+  functionBaseUrl?: string;
+  /** Application ID URI of the Function's API app registration (api://{clientId}). */
+  apiResource?: string;
 }
 
 const LOG_SOURCE: string = 'DocActionsCommandSet';
@@ -54,6 +60,7 @@ const DEFAULT_DOCUMENTS_LIBRARY: string = 'Documents';
 const DEFAULT_BUNDLES_LIBRARY: string = 'Bundles';
 const DEFAULT_BUNDLE_REGISTRY_LIST: string = 'BundleRegistry';
 const DEFAULT_BUNDLE_ITEMS_LIST: string = 'BundleItems';
+const DEFAULT_BUNDLE_MANIFESTS_LIBRARY: string = 'BundleManifests';
 
 /** Document actions for the advocate-firm POC, all opened from the library views. */
 export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocActionsCommandSetProperties> {
@@ -126,6 +133,17 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
       `${lists}/${this.properties.bundleItemsList ?? DEFAULT_BUNDLE_ITEMS_LIST}`);
   }
 
+  private _buildService(): BundleApiService {
+    const p: IDocActionsCommandSetProperties = this.properties;
+    return new BundleApiService(this.context.aadHttpClientFactory, p.apiResource ?? '', p.functionBaseUrl ?? '', this._webAbsoluteUrl, {
+      documents: p.documentsLibrary ?? DEFAULT_DOCUMENTS_LIBRARY,
+      bundles: p.bundlesLibrary ?? DEFAULT_BUNDLES_LIBRARY,
+      registry: p.bundleRegistryList ?? DEFAULT_BUNDLE_REGISTRY_LIST,
+      items: p.bundleItemsList ?? DEFAULT_BUNDLE_ITEMS_LIST,
+      manifests: p.bundleManifestsLibrary ?? DEFAULT_BUNDLE_MANIFESTS_LIBRARY
+    });
+  }
+
   /** New bundle from a selection, or an existing saved bundle when `bundle` is given. */
   private _openBundleBuilder(documents: ISelectedDocument[], bundle?: IBundle): void {
     const queryService: DocumentQueryService = new DocumentQueryService(
@@ -133,7 +151,7 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
     const libraryTitle: string = this._libraryKind() === LibraryKind.Documents ? this.context.listView.list?.title ?? '' : '';
     this._panels.open(close => React.createElement(BundleBuilderDrawer, {
       webAbsoluteUrl: this._webAbsoluteUrl, documents, bundle, queryService,
-      bundleService: this._bundleService(), libraryTitle: libraryTitle || (this.properties.documentsLibrary ?? DEFAULT_DOCUMENTS_LIBRARY),
+      bundleService: this._bundleService(), buildService: this._buildService(), libraryTitle: libraryTitle || (this.properties.documentsLibrary ?? DEFAULT_DOCUMENTS_LIBRARY),
       onClose: close
     }));
   }

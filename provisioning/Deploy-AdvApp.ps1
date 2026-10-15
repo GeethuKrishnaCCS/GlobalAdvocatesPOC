@@ -31,6 +31,9 @@ $componentId = '474974a6-76ee-4efa-9e8b-80bc77bbb7ec'
     bundlesLibrary     = 'ADVTestBundles'
     bundleRegistryList = 'ADVTestBundleRegistry'
     bundleItemsList    = 'ADVTestBundleItems'
+    bundleManifestsLibrary = 'ADVTestBundleManifests'
+    functionBaseUrl    = 'https://func-advtest-docs-poc.azurewebsites.net'
+    apiResource        = 'api://daf35d1e-0756-4216-a61d-827d5eca434f'
 } | ConvertTo-Json -Compress
 $package = Join-Path $PSScriptRoot '../advocate-docs/sharepoint/solution/advocate-docs.sppkg'
 
@@ -59,4 +62,5 @@ catch {
     Write-Error "Deploy failed: $($_.Exception.Message)"
     throw
 }
+
 

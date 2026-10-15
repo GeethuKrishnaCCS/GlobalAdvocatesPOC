@@ -15,6 +15,8 @@ const JSON_HEADERS: Record<string, string> = {
 interface IMemberRow {
   Id: number;
   SourceUniqueId: string;
+  /** Documents library item id; 0 on rows saved before the column existed. */
+  SourceItemId: number | undefined;
   SortOrder: number;
   IndexTitle: string;
 }
@@ -50,7 +52,7 @@ async function forEachLimited<T>(items: ReadonlyArray<T>, limit: number, work: (
 function toDocumentFromMember(row: IMemberRow): ISelectedDocument {
   const name: string = row.IndexTitle || row.SourceUniqueId;
   return {
-    id: 0,
+    id: row.SourceItemId ?? 0,
     uniqueId: row.SourceUniqueId.toLowerCase(),
     name,
     fileType: (name.split('.').pop() ?? '').toLowerCase(),
@@ -141,7 +143,7 @@ export class BundleService {
 
   private _getMembers(bundleId: string): Promise<IMemberRow[]> {
     return this._getAll<IMemberRow>(this._itemsListUrl,
-      `$select=Id,SourceUniqueId,SortOrder,IndexTitle&$filter=BundleId eq '${odataString(bundleId)}'&$orderby=SortOrder`);
+      `$select=Id,SourceUniqueId,SourceItemId,SortOrder,IndexTitle&$filter=BundleId eq '${odataString(bundleId)}'&$orderby=SortOrder`);
   }
 
   private async _createMember(bundleId: string, doc: ISelectedDocument, order: number): Promise<void> {
@@ -149,6 +151,7 @@ export class BundleService {
       Title: doc.name,
       BundleId: bundleId,
       SourceUniqueId: doc.uniqueId,
+      SourceItemId: doc.id > 0 ? doc.id : undefined,
       SortOrder: order,
       IndexTitle: doc.name
     });

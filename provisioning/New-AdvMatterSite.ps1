@@ -60,6 +60,8 @@ $fields = @(
     @{ List = 'ADVTestBundleItems'; Name = 'BundleId';           Type = 'Text';     Label = 'Bundle ID'; Indexed = $true }
     @{ List = 'ADVTestBundleItems'; Name = 'SourceUniqueId';     Type = 'Text';     Label = 'Source document ID' }
     @{ List = 'ADVTestBundleItems'; Name = 'SourceVersionLabel'; Type = 'Text';     Label = 'Source version' }
+    # Documents library item id — lets the build Function find the file through Graph.
+    @{ List = 'ADVTestBundleItems'; Name = 'SourceItemId';       Type = 'Number';   Label = 'Source item ID' }
     @{ List = 'ADVTestBundleItems'; Name = 'SortOrder';          Type = 'Number';   Label = 'Order' }
     @{ List = 'ADVTestBundleItems'; Name = 'IndexTitle';         Type = 'Text';     Label = 'Index title' }
     @{ List = 'ADVTestBundleItems'; Name = 'IndexDate';          Type = 'DateTime'; Label = 'Index date' }
