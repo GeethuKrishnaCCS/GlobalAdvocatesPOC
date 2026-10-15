@@ -43,4 +43,4 @@ public sealed record PublishInput(string WorkPrefix, BuildInput Build, BundlePla
 public sealed record BuildResult(string PdfUrl, int Version, int PageCount, int Documents, int Placeholders);
 
 /// <summary>Progress shown while the orchestration runs.</summary>
-public sealed record BuildProgress(string Stage, int Done, int Total);
+public sealed record BuildProgress(string Stage, int Done, int Total, string? Error = null);

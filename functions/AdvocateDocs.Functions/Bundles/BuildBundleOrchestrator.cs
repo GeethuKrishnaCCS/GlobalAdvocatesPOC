@@ -14,6 +14,20 @@ public static class BuildBundleOrchestrator
     [Function(nameof(BuildBundleOrchestrator))]
     public static async Task<BuildResult> Run([OrchestrationTrigger] TaskOrchestrationContext context)
     {
+        try
+        {
+            return await BuildAsync(context);
+        }
+        catch (TaskFailedException ex)
+        {
+            // Surface the activity's own message to the caller; failure details aren't always returned by the status query.
+            context.SetCustomStatus(new BuildProgress("failed", 0, 0, ex.FailureDetails.ErrorMessage));
+            throw;
+        }
+    }
+
+    private static async Task<BuildResult> BuildAsync(TaskOrchestrationContext context)
+    {
         var input = context.GetInput<BuildInput>()!;
         var workPrefix = context.InstanceId;
 

@@ -19,6 +19,8 @@ public sealed class GraphSiteClient(HttpClient http, TokenCredential credential)
     private const string GraphRoot = "https://graph.microsoft.com/v1.0";
     private static readonly string[] Scopes = ["https://graph.microsoft.com/.default"];
     private const int MaxAttempts = 5;
+    /// <summary>SharePoint field names are case-sensitive: send property names as written (JsonContent defaults to camelCase).</summary>
+    private static readonly JsonSerializerOptions AsWritten = new();
     /// <summary>Upload session chunk: must be a multiple of 320 KiB.</summary>
     private const int UploadChunkSize = 320 * 1024 * 16;
 
@@ -109,7 +111,7 @@ public sealed class GraphSiteClient(HttpClient http, TokenCredential credential)
     {
         using var response = await SendAsync(() => new HttpRequestMessage(HttpMethod.Patch, $"{GraphRoot}/sites/{siteId}/lists/{listId}/items/{itemId}/fields")
         {
-            Content = JsonContent.Create(fields)
+            Content = JsonContent.Create(fields, options: AsWritten)
         }, ct);
         await EnsureSuccessAsync(response, "update list item");
     }
@@ -145,7 +147,7 @@ public sealed class GraphSiteClient(HttpClient http, TokenCredential credential)
 
     private async Task<JsonObject> PostJsonAsync(string relativeUrl, object body, CancellationToken ct)
     {
-        using var response = await SendAsync(() => new HttpRequestMessage(HttpMethod.Post, GraphRoot + relativeUrl) { Content = JsonContent.Create(body) }, ct);
+        using var response = await SendAsync(() => new HttpRequestMessage(HttpMethod.Post, GraphRoot + relativeUrl) { Content = JsonContent.Create(body, options: AsWritten) }, ct);
         await EnsureSuccessAsync(response, "write to Graph");
         return (await response.Content.ReadFromJsonAsync<JsonObject>(ct))!;
     }

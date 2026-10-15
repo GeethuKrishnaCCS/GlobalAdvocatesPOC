@@ -52,7 +52,7 @@ public sealed partial class BundleBuildFunctions(IOptions<SharePointOptions> sha
             status = instance.RuntimeStatus.ToString(),
             progress = instance.ReadCustomStatusAs<BuildProgress>(),
             result = instance.RuntimeStatus == OrchestrationRuntimeStatus.Completed ? instance.ReadOutputAs<BuildResult>() : null,
-            error = instance.FailureDetails?.ErrorMessage
+            error = instance.FailureDetails?.ErrorMessage ?? instance.ReadCustomStatusAs<BuildProgress>()?.Error
         });
     }
 
