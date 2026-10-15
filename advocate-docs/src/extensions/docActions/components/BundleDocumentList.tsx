@@ -35,18 +35,19 @@ export const BundleDocumentList: React.FC<IBundleDocumentListProps> = ({ draft }
   const { state, actions } = draft;
 
   const onKeyDown = (e: React.KeyboardEvent, doc: ISelectedDocument): void => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); actions.highlight(doc.id); }
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); actions.highlight(doc.uniqueId); }
   };
 
   return (
     <ol className={styles.list} aria-label={strings.BundleBuilderTitle} data-testid="bundle-list">
       {state.documents.map((doc, i) => (
         <li
-          key={doc.id}
-          className={mergeClasses(styles.row, doc.id === state.highlightedId && styles.selected)}
+          key={doc.uniqueId}
+          className={mergeClasses(styles.row, doc.uniqueId === state.highlightedId && styles.selected)}
           tabIndex={0}
-          aria-current={doc.id === state.highlightedId}
-          onClick={() => actions.highlight(doc.id)}
+          aria-current={doc.uniqueId === state.highlightedId}
+          // Menu items render in a portal but React still bubbles their clicks here; only real row clicks highlight.
+          onClick={e => { if (e.currentTarget.contains(e.target as Node)) { actions.highlight(doc.uniqueId); } }}
           onKeyDown={e => onKeyDown(e, doc)}
           data-testid="bundle-list-row"
         >
@@ -64,11 +65,11 @@ export const BundleDocumentList: React.FC<IBundleDocumentListProps> = ({ draft }
             </MenuTrigger>
             <MenuPopover>
               <MenuList>
-                <MenuItem icon={<ArrowUp20Regular />} disabled={i === 0} onClick={() => actions.moveUp(doc.id)}
+                <MenuItem icon={<ArrowUp20Regular />} disabled={i === 0} onClick={() => actions.moveUp(doc.uniqueId)}
                   data-testid="bundle-list-move-up">{strings.MoveUp}</MenuItem>
-                <MenuItem icon={<ArrowDown20Regular />} disabled={i === state.documents.length - 1} onClick={() => actions.moveDown(doc.id)}
+                <MenuItem icon={<ArrowDown20Regular />} disabled={i === state.documents.length - 1} onClick={() => actions.moveDown(doc.uniqueId)}
                   data-testid="bundle-list-move-down">{strings.MoveDown}</MenuItem>
-                <MenuItem icon={<Delete20Regular />} onClick={() => actions.remove(doc.id)}
+                <MenuItem icon={<Delete20Regular />} onClick={() => actions.remove(doc.uniqueId)}
                   data-testid="bundle-list-remove">{strings.RemoveFromBundle}</MenuItem>
               </MenuList>
             </MenuPopover>
@@ -78,3 +79,4 @@ export const BundleDocumentList: React.FC<IBundleDocumentListProps> = ({ draft }
     </ol>
   );
 };
+

@@ -52,10 +52,30 @@ declare interface IDocActionsCommandSetStrings {
   SendAsPdf: string;
   SendVersion: string;
   SendVersionAs: string;
+  AddToBundle: string;
+  OpenBundle: string;
+  EditBundleTitle: string;
+  BundleName: string;
+  SaveBundle: string;
+  BundleSaved: string;
+  DiscardTitle: string;
+  DiscardBody: string;
+  Discard: string;
+  KeepEditing: string;
+  Cancel: string;
+  OpenBundleTitle: string;
+  AddToBundleTitle: string;
+  LoadingBundles: string;
+  NoSavedBundles: string;
+  SavedBundles: string;
+  BundleOptionMeta: string;
+  AddToBundleResult: string;
+  AddToBundleConfirm: string;
 }
 
 declare module 'DocActionsCommandSetStrings' {
   const strings: IDocActionsCommandSetStrings;
   export = strings;
 }
+
 

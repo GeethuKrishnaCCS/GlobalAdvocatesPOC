@@ -8,7 +8,7 @@
       "customActions": {
         "474974a6-76ee-4efa-9e8b-80bc77bbb7ec": {
           "location": "ClientSideExtension.ListViewCommandSet",
-          "properties": { "documentsLibrary": "ADVTestDocuments", "bundlesLibrary": "ADVTestBundles" }
+          "properties": { "documentsLibrary": "ADVTestDocuments", "bundlesLibrary": "ADVTestBundles", "bundleRegistryList": "ADVTestBundleRegistry", "bundleItemsList": "ADVTestBundleItems" }
         }
       }
     },
@@ -17,11 +17,12 @@
       "customActions": {
         "474974a6-76ee-4efa-9e8b-80bc77bbb7ec": {
           "location": "ClientSideExtension.ListViewCommandSet",
-          "properties": { "documentsLibrary": "ADVTestDocuments", "bundlesLibrary": "ADVTestBundles" }
+          "properties": { "documentsLibrary": "ADVTestDocuments", "bundlesLibrary": "ADVTestBundles", "bundleRegistryList": "ADVTestBundleRegistry", "bundleItemsList": "ADVTestBundleItems" }
         }
       }
     }
   }
 }
+
 
 

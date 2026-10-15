@@ -52,7 +52,28 @@ define([], function() {
     "Send": "Send",
     "SendAsPdf": "Send as PDF",
     "SendVersion": "Send previous version",
-    "SendVersionAs": "Send previous version as PDF"
+    "SendVersionAs": "Send previous version as PDF",
+    "AddToBundle": "Add to bundle",
+    "OpenBundle": "Open bundle",
+    "EditBundleTitle": "Edit bundle",
+    "BundleName": "Bundle name",
+    "SaveBundle": "Save bundle",
+    "BundleSaved": "Bundle '{0}' saved.",
+    "DiscardTitle": "Discard unsaved changes?",
+    "DiscardBody": "Changes to this bundle haven't been saved. Closing now discards them.",
+    "Discard": "Discard",
+    "KeepEditing": "Keep editing",
+    "Cancel": "Cancel",
+    "OpenBundleTitle": "Open a saved bundle",
+    "AddToBundleTitle": "Add {0} documents to a bundle",
+    "LoadingBundles": "Loading bundles",
+    "NoSavedBundles": "No saved bundles yet. Use Create bundle to make one.",
+    "SavedBundles": "Saved bundles",
+    "BundleOptionMeta": "{0} documents · {1}",
+    "AddToBundleResult": "{0} added to '{1}'. Already in the bundle: {2}.",
+    "AddToBundleConfirm": "Add {0} documents"
   }
 });
+
+
 

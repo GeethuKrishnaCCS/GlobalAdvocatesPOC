@@ -3,7 +3,7 @@
   "solution": {
     "name": "advocate-docs-client-side-solution",
     "id": "155599bd-3e80-4827-b392-2e152685c72c",
-    "version": "1.0.1.0",
+    "version": "1.0.2.0",
     "includeClientSideAssets": true,
     "isDomainIsolated": false,
     "webApiPermissionRequests": [
@@ -47,5 +47,6 @@
     "zippedPackage": "solution/advocate-docs.sppkg"
   }
 }
+
 
 

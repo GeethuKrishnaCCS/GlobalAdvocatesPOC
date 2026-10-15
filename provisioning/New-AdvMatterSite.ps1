@@ -42,6 +42,8 @@ $lists = @(
     @{ Name = 'ADVTestBundles';         Template = 'DocumentLibrary'; Label = 'Bundles (test)' }
     @{ Name = 'ADVTestBundleItems';     Template = 'GenericList';     Label = 'Bundle items (test)' }
     @{ Name = 'ADVTestBundleManifests'; Template = 'DocumentLibrary'; Label = 'Bundle manifests (test)' }
+    # One row per bundle (header); members live in ADVTestBundleItems keyed by BundleId.
+    @{ Name = 'ADVTestBundleRegistry';  Template = 'GenericList';     Label = 'Bundle registry (test)' }
 )
 
 $fields = @(
@@ -61,6 +63,11 @@ $fields = @(
     @{ List = 'ADVTestBundleItems'; Name = 'SortOrder';          Type = 'Number';   Label = 'Order' }
     @{ List = 'ADVTestBundleItems'; Name = 'IndexTitle';         Type = 'Text';     Label = 'Index title' }
     @{ List = 'ADVTestBundleItems'; Name = 'IndexDate';          Type = 'DateTime'; Label = 'Index date' }
+
+    @{ List = 'ADVTestBundleRegistry'; Name = 'BundleId';     Type = 'Text';   Label = 'Bundle ID'; Indexed = $true }
+    @{ List = 'ADVTestBundleRegistry'; Name = 'BundleStatus'; Type = 'Choice'; Label = 'Status'; Choices = @('Draft', 'Built') }
+    @{ List = 'ADVTestBundleRegistry'; Name = 'MemberCount';  Type = 'Number'; Label = 'Documents' }
+    @{ List = 'ADVTestBundleRegistry'; Name = 'LatestPdfUrl'; Type = 'Text';   Label = 'Latest PDF' }
 
     @{ List = 'ADVTestBundleManifests'; Name = 'BundleId';     Type = 'Text';   Label = 'Bundle ID'; Indexed = $true }
     @{ List = 'ADVTestBundleManifests'; Name = 'BuildVersion'; Type = 'Number'; Label = 'Build version' }

@@ -15,8 +15,10 @@
       "hubSites": [],
       "azure": {
         "account": "dev01@ccsdev01.onmicrosoft.com",
-        "subscriptionId": "",
-        "resourceGroup": ""
+        "subscriptionId": "109e15d6-ccbf-4789-917a-794a9153e21c",
+        "resourceGroup": "rg-advtest-docs-poc",
+        "functionApp": "func-advtest-docs-poc",
+        "location": "centralindia"
       }
     },
     "prod": {
@@ -27,3 +29,4 @@
     }
   }
 }
+

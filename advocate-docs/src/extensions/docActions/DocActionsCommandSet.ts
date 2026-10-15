@@ -13,11 +13,19 @@ import { format } from './utils/format';
 import { PreviewDialog } from './components/PreviewDialog';
 import { BundleBuilderDrawer } from './components/BundleBuilderDrawer';
 import { DocumentQueryService } from './services/DocumentQueryService';
+import { BundleService } from './services/BundleService';
+import { BundlePickerDialog } from './components/BundlePickerDialog';
+import type { IBundle } from './models/IBundle';
+import type { ISelectedDocument } from './models/ISelectedDocument';
 
-/** ClientSideComponentProperties: URL names (not titles) of the matter site libraries. */
+/** ClientSideComponentProperties: URL names (not titles) of the matter site libraries and lists. */
 export interface IDocActionsCommandSetProperties {
   documentsLibrary?: string;
   bundlesLibrary?: string;
+  /** Under /Lists/. */
+  bundleRegistryList?: string;
+  /** Under /Lists/. */
+  bundleItemsList?: string;
 }
 
 const LOG_SOURCE: string = 'DocActionsCommandSet';
@@ -26,6 +34,8 @@ const LOG_SOURCE: string = 'DocActionsCommandSet';
 const enum CommandId {
   Preview = 'PREVIEW',
   CreateBundle = 'CREATE_BUNDLE',
+  OpenBundle = 'OPEN_BUNDLE',
+  AddToBundle = 'ADD_TO_BUNDLE',
   Send = 'SEND',
   SendAsPdf = 'SEND_AS_PDF',
   SendVersion = 'SEND_VERSION',
@@ -41,6 +51,8 @@ const enum LibraryKind {
 
 const DEFAULT_DOCUMENTS_LIBRARY: string = 'Documents';
 const DEFAULT_BUNDLES_LIBRARY: string = 'Bundles';
+const DEFAULT_BUNDLE_REGISTRY_LIST: string = 'BundleRegistry';
+const DEFAULT_BUNDLE_ITEMS_LIST: string = 'BundleItems';
 
 /** Document actions for the advocate-firm POC, all opened from the library views. */
 export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocActionsCommandSetProperties> {
@@ -59,7 +71,13 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
         this._openPreview();
         break;
       case CommandId.CreateBundle:
-        this._openBundleBuilder();
+        this._openBundleBuilder(toSelectedDocuments(this.context.listView.selectedRows ?? []));
+        break;
+      case CommandId.OpenBundle:
+        this._openBundlePicker('open', []);
+        break;
+      case CommandId.AddToBundle:
+        this._openBundlePicker('add', toSelectedDocuments(this.context.listView.selectedRows ?? []));
         break;
       case CommandId.Send:
         this._notAvailableYet(strings.Send);
@@ -92,16 +110,38 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
     this._panels.open(close => React.createElement(PreviewDialog, { webAbsoluteUrl: this._webAbsoluteUrl, documents, onClose: close }));
   }
 
-  private _openBundleBuilder(): void {
-    const documents = toSelectedDocuments(this.context.listView.selectedRows ?? []);
-    const loadedRowCount: number = this.context.listView.rows.length;
-    const list = this.context.listView.list;
-    Log.info(LOG_SOURCE, `Bundle builder: ${documents.length} selected of ${loadedRowCount} loaded rows`);
+  private get _webServerRelativeUrl(): string {
+    return this.context.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
+  }
+
+  private _documentsLibraryUrl(): string {
+    return `${this._webServerRelativeUrl}/${this.properties.documentsLibrary ?? DEFAULT_DOCUMENTS_LIBRARY}`;
+  }
+
+  private _bundleService(): BundleService {
+    const lists: string = `${this._webServerRelativeUrl}/Lists`;
+    return new BundleService(this.context.spHttpClient, this._webAbsoluteUrl,
+      `${lists}/${this.properties.bundleRegistryList ?? DEFAULT_BUNDLE_REGISTRY_LIST}`,
+      `${lists}/${this.properties.bundleItemsList ?? DEFAULT_BUNDLE_ITEMS_LIST}`);
+  }
+
+  /** New bundle from a selection, or an existing saved bundle when `bundle` is given. */
+  private _openBundleBuilder(documents: ISelectedDocument[], bundle?: IBundle): void {
     const queryService: DocumentQueryService = new DocumentQueryService(
-      this.context.spHttpClient, this._webAbsoluteUrl, list?.serverRelativeUrl ?? '');
+      this.context.spHttpClient, this._webAbsoluteUrl, this._documentsLibraryUrl());
+    const libraryTitle: string = this._libraryKind() === LibraryKind.Documents ? this.context.listView.list?.title ?? '' : '';
     this._panels.open(close => React.createElement(BundleBuilderDrawer, {
-      webAbsoluteUrl: this._webAbsoluteUrl, documents, loadedRowCount, queryService,
-      libraryTitle: list?.title ?? '', onClose: close
+      webAbsoluteUrl: this._webAbsoluteUrl, documents, bundle, queryService,
+      bundleService: this._bundleService(), libraryTitle: libraryTitle || (this.properties.documentsLibrary ?? DEFAULT_DOCUMENTS_LIBRARY),
+      onClose: close
+    }));
+  }
+
+  private _openBundlePicker(mode: 'open' | 'add', documents: ISelectedDocument[]): void {
+    this._panels.open(close => React.createElement(BundlePickerDialog, {
+      service: this._bundleService(), mode, documents,
+      onOpen: (bundle: IBundle) => this._openBundleBuilder([], bundle),
+      onClose: close
     }));
   }
 
@@ -127,6 +167,8 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
     this._setVisible(CommandId.Preview, inMatterLibrary && selectedCount >= 1);
     // No selection needed: documents can be added by folder, filter or search inside the builder.
     this._setVisible(CommandId.CreateBundle, kind === LibraryKind.Documents);
+    this._setVisible(CommandId.OpenBundle, inMatterLibrary);
+    this._setVisible(CommandId.AddToBundle, kind === LibraryKind.Documents && selectedCount >= 1);
     // Current version: one or more documents in one email. Previous version: exactly one document.
     this._setVisible(CommandId.Send, inMatterLibrary && selectedCount >= 1);
     this._setVisible(CommandId.SendAsPdf, inMatterLibrary && selectedCount >= 1);
@@ -148,3 +190,4 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
     });
   }
 }
+
