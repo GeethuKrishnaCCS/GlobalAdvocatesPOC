@@ -19,6 +19,16 @@
         "resourceGroup": "rg-advtest-docs-poc",
         "functionApp": "func-advtest-docs-poc",
         "location": "centralindia"
+      },
+      "docsApiApp": {
+        "displayName": "ADVTest-DocsApi",
+        "clientId": "daf35d1e-0756-4216-a61d-827d5eca434f",
+        "objectId": "a7bc53c3-d5a5-4ad4-8569-6c67055e6318",
+        "servicePrincipalId": "b8ecb761-7cb0-49e6-9bea-465667cb6b84",
+        "identifierUri": "api://daf35d1e-0756-4216-a61d-827d5eca434f",
+        "scope": "user_impersonation",
+        "certThumbprint": "FBA2FA1079DA7B472386CD5F42D9BA0D056B2696",
+        "certExpires": "2027-10-15"
       }
     },
     "prod": {
