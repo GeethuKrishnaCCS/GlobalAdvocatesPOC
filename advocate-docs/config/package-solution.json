@@ -3,12 +3,13 @@
   "solution": {
     "name": "advocate-docs-client-side-solution",
     "id": "155599bd-3e80-4827-b392-2e152685c72c",
-    "version": "1.0.3.0",
+    "version": "1.0.4.0",
     "includeClientSideAssets": true,
     "isDomainIsolated": false,
     "webApiPermissionRequests": [
       { "resource": "Microsoft Graph", "scope": "Files.ReadWrite.All" },
-      { "resource": "Microsoft Graph", "scope": "Mail.ReadWrite" }
+      { "resource": "Microsoft Graph", "scope": "Mail.ReadWrite" },
+      { "resource": "ADVTest-DocsApi", "scope": "user_impersonation" }
     ],
     "developer": {
       "name": "",
@@ -47,6 +48,7 @@
     "zippedPackage": "solution/advocate-docs.sppkg"
   }
 }
+
 
 
 
