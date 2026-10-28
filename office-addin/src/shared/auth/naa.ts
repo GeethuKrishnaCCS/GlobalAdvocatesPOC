@@ -18,7 +18,8 @@ function getPca(): Promise<IPublicClientApplication> {
 
 /** True when the host supports Nested App Authentication (NAA); otherwise only the popup works. */
 export function isNaaSupported(): boolean {
-  return Office.context.requirements.isSetSupported("NestedAppAuth", "1.1");
+  // requirements is undefined when the page runs outside an Office host.
+  return Office.context?.requirements?.isSetSupported("NestedAppAuth", "1.1") ?? false;
 }
 
 /**
