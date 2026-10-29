@@ -12,15 +12,13 @@ export interface IAppProps {
 const VIEW_TITLES: Record<PaneView, string> = {
   [PaneView.SaveToMatter]: "Save to Matter",
   [PaneView.SendAsAttachment]: "Send as Attachment",
-  [PaneView.FileToMatter]: "File to Matter",
-  [PaneView.AttachFromMatter]: "Attach from Matter",
 };
 
 const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalM, padding: tokens.spacingHorizontalL },
 });
 
-/** Step 0 spike: proves host routing + NAA sign-in + Graph /me in Word and Outlook. */
+/** Step 0 spike: proves view routing + NAA sign-in + Graph /me in Word. */
 const App: React.FC<IAppProps> = ({ host, view }) => {
   const styles = useStyles();
   const { state, actions, computed } = useSignIn();

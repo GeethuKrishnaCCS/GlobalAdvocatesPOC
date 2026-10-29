@@ -14,6 +14,4 @@ export const GRAPH_SCOPES = [
 export enum PaneView {
   SaveToMatter = "save",
   SendAsAttachment = "send",
-  FileToMatter = "file",
-  AttachFromMatter = "attach",
 }

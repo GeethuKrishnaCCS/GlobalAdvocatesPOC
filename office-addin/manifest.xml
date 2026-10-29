@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Dev sideload manifest (add-in only). office-addin-debugging can sideload only XML to Word on the web; manifest.json is the deployment manifest. -->
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
+  <Id>34ca07a9-c204-475a-a213-694399a38430</Id>
+  <Version>1.0.1.0</Version>
+  <ProviderName>ADVTest POC</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Global Advocate (ADVTest dev)"/>
+  <Description DefaultValue="Save Word documents to a matter and send them as Outlook drafts."/>
+  <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-64.png"/>
+  <SupportUrl DefaultValue="https://localhost:3000/taskpane.html"/>
+  <AppDomains>
+    <AppDomain>https://localhost:3000</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Document"/>
+  </Hosts>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:3000/taskpane.html?view=save"/>
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Description"/>
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
+          </GetStarted>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <CustomTab id="GlobalAdvocateTab">
+              <Group id="MatterWorkspaceGroup">
+                <Label resid="MatterWorkspaceGroup.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16"/>
+                  <bt:Image size="32" resid="Icon.32x32"/>
+                  <bt:Image size="80" resid="Icon.80x80"/>
+                </Icon>
+                <Control xsi:type="Button" id="SaveToMatterButton">
+                  <Label resid="SaveToMatter.Label"/>
+                  <Supertip>
+                    <Title resid="SaveToMatter.Label"/>
+                    <Description resid="SaveToMatter.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>SaveToMatter</TaskpaneId>
+                    <SourceLocation resid="SaveToMatter.Url"/>
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="SendAsAttachmentButton">
+                  <Label resid="SendAsAttachment.Label"/>
+                  <Supertip>
+                    <Title resid="SendAsAttachment.Label"/>
+                    <Description resid="SendAsAttachment.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>SendAsAttachment</TaskpaneId>
+                    <SourceLocation resid="SendAsAttachment.Url"/>
+                  </Action>
+                </Control>
+              </Group>
+              <Label resid="GlobalAdvocateTab.Label"/>
+            </CustomTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3000/assets/icon-16.png"/>
+        <bt:Image id="Icon.32x32" DefaultValue="https://localhost:3000/assets/icon-32.png"/>
+        <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/assets/icon-80.png"/>
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://go.microsoft.com/fwlink/?LinkId=276812"/>
+        <bt:Url id="SaveToMatter.Url" DefaultValue="https://localhost:3000/taskpane.html?view=save"/>
+        <bt:Url id="SendAsAttachment.Url" DefaultValue="https://localhost:3000/taskpane.html?view=send"/>
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GetStarted.Title" DefaultValue="Global Advocate is ready"/>
+        <bt:String id="GlobalAdvocateTab.Label" DefaultValue="Global Advocate"/>
+        <bt:String id="MatterWorkspaceGroup.Label" DefaultValue="Matter workspace"/>
+        <bt:String id="SaveToMatter.Label" DefaultValue="Save to Matter"/>
+        <bt:String id="SendAsAttachment.Label" DefaultValue="Send as Attachment"/>
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Description" DefaultValue="Open the Global Advocate tab to save this document to a matter or send it as an attachment."/>
+        <bt:String id="SaveToMatter.Tooltip" DefaultValue="Save this document into a matter folder."/>
+        <bt:String id="SendAsAttachment.Tooltip" DefaultValue="Create an Outlook draft with this document attached."/>
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

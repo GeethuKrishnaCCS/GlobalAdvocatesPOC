@@ -1,15 +1,10 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.17/MicrosoftTeams.schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json#",
+  "manifestVersion": "1.22",
+  "version": "1.0.1",
   "id": "01d979fb-0f5f-4a7e-9790-c35426b37ea8",
-  "manifestVersion": "1.17",
-  "version": "1.0.0",
-  "name": {
-    "short": "Global Advocate (ADVTest)",
-    "full": "Global Advocate matter workspace (ADVTest POC)"
-  },
-  "description": {
-    "short": "File, save and send matter documents.",
-    "full": "Save Word documents to a matter, send them as Outlook drafts, file emails to a matter and attach matter documents to emails."
+  "localizationInfo": {
+    "defaultLanguageTag": "en-us"
   },
   "developer": {
     "name": "ADVTest POC",
@@ -17,267 +12,68 @@
     "privacyUrl": "https://localhost:3000",
     "termsOfUseUrl": "https://localhost:3000"
   },
+  "name": {
+    "short": "Global Advocate (ADVTest)",
+    "full": "Global Advocate matter workspace (ADVTest POC)"
+  },
+  "description": {
+    "short": "Save Word documents to a matter and send them as Outlook drafts.",
+    "full": "Save the open Word document into a matter folder, or create an Outlook draft with it attached."
+  },
   "icons": {
     "outline": "assets/outline.png",
     "color": "assets/color.png"
   },
   "accentColor": "#0F6E5A",
-  "localizationInfo": {
-    "defaultLanguageTag": "en-us",
-    "additionalLanguages": []
-  },
+  "validDomains": ["https://localhost:3000"],
+  "showLoadingIndicator": false,
+  "isFullScreen": false,
+  "defaultBlockUntilAdminAction": false,
   "authorization": {
     "permissions": {
       "resourceSpecific": [
         {
-          "name": "Mailbox.ReadWrite.User",
+          "name": "Document.ReadWrite.User",
           "type": "Delegated"
         }
       ]
     }
   },
-  "validDomains": [],
   "extensions": [
     {
       "requirements": {
-        "scopes": [
-          "mail",
-          "document"
-        ]
+        "scopes": ["document"]
       },
       "runtimes": [
         {
-          "id": "FileToMatterRuntime",
-          "type": "general",
-          "code": {
-            "page": "https://localhost:3000/taskpane.html?view=file"
-          },
-          "lifetime": "short",
-          "actions": [
-            {
-              "id": "ShowFileToMatter",
-              "type": "openPage",
-              "pinnable": false
-            }
-          ],
           "requirements": {
-            "scopes": [
-              "mail"
-            ],
-            "capabilities": [
-              {
-                "name": "Mailbox",
-                "minVersion": "1.8"
-              }
-            ]
-          }
-        },
-        {
-          "id": "AttachFromMatterRuntime",
-          "type": "general",
-          "code": {
-            "page": "https://localhost:3000/taskpane.html?view=attach"
+            "capabilities": [{ "name": "AddinCommands", "minVersion": "1.1" }]
           },
-          "lifetime": "short",
-          "actions": [
-            {
-              "id": "ShowAttachFromMatter",
-              "type": "openPage",
-              "pinnable": false
-            }
-          ],
-          "requirements": {
-            "scopes": [
-              "mail"
-            ],
-            "capabilities": [
-              {
-                "name": "Mailbox",
-                "minVersion": "1.8"
-              }
-            ]
-          }
-        },
-        {
           "id": "SaveToMatterRuntime",
           "type": "general",
-          "code": {
-            "page": "https://localhost:3000/taskpane.html?view=save"
-          },
+          "code": { "page": "https://localhost:3000/taskpane.html?view=save" },
           "lifetime": "short",
-          "actions": [
-            {
-              "id": "ShowSaveToMatter",
-              "type": "openPage",
-              "pinnable": false
-            }
-          ],
-          "requirements": {
-            "scopes": [
-              "document"
-            ]
-          }
+          "actions": [{ "id": "ShowSaveToMatter", "type": "openPage", "view": "SaveToMatter" }]
         },
         {
+          "requirements": {
+            "capabilities": [{ "name": "AddinCommands", "minVersion": "1.1" }]
+          },
           "id": "SendAsAttachmentRuntime",
           "type": "general",
-          "code": {
-            "page": "https://localhost:3000/taskpane.html?view=send"
-          },
+          "code": { "page": "https://localhost:3000/taskpane.html?view=send" },
           "lifetime": "short",
-          "actions": [
-            {
-              "id": "ShowSendAsAttachment",
-              "type": "openPage",
-              "pinnable": false
-            }
-          ],
-          "requirements": {
-            "scopes": [
-              "document"
-            ]
-          }
+          "actions": [{ "id": "ShowSendAsAttachment", "type": "openPage", "view": "SendAsAttachment" }]
         }
       ],
       "ribbons": [
         {
-          "contexts": [
-            "mailRead"
-          ],
-          "tabs": [
-            {
-              "builtInTabId": "TabDefault",
-              "groups": [
-                {
-                  "id": "msgReadMatterGroup",
-                  "label": "Global Advocate",
-                  "icons": [
-                    {
-                      "size": 16,
-                      "url": "https://localhost:3000/assets/icon-16.png"
-                    },
-                    {
-                      "size": 32,
-                      "url": "https://localhost:3000/assets/icon-32.png"
-                    },
-                    {
-                      "size": 80,
-                      "url": "https://localhost:3000/assets/icon-80.png"
-                    }
-                  ],
-                  "controls": [
-                    {
-                      "id": "msgReadFileToMatterButton",
-                      "type": "button",
-                      "label": "File to Matter",
-                      "icons": [
-                        {
-                          "size": 16,
-                          "url": "https://localhost:3000/assets/icon-16.png"
-                        },
-                        {
-                          "size": 32,
-                          "url": "https://localhost:3000/assets/icon-32.png"
-                        },
-                        {
-                          "size": 80,
-                          "url": "https://localhost:3000/assets/icon-80.png"
-                        }
-                      ],
-                      "supertip": {
-                        "title": "File to Matter",
-                        "description": "Save this email and its attachments to a matter folder."
-                      },
-                      "actionId": "ShowFileToMatter"
-                    }
-                  ]
-                }
-              ]
-            }
-          ],
           "requirements": {
-            "scopes": [
-              "mail"
-            ],
-            "capabilities": [
-              {
-                "name": "Mailbox",
-                "minVersion": "1.8"
-              }
-            ]
-          }
-        },
-        {
-          "contexts": [
-            "mailCompose"
-          ],
-          "tabs": [
-            {
-              "builtInTabId": "TabDefault",
-              "groups": [
-                {
-                  "id": "msgComposeMatterGroup",
-                  "label": "Global Advocate",
-                  "icons": [
-                    {
-                      "size": 16,
-                      "url": "https://localhost:3000/assets/icon-16.png"
-                    },
-                    {
-                      "size": 32,
-                      "url": "https://localhost:3000/assets/icon-32.png"
-                    },
-                    {
-                      "size": 80,
-                      "url": "https://localhost:3000/assets/icon-80.png"
-                    }
-                  ],
-                  "controls": [
-                    {
-                      "id": "msgComposeAttachFromMatterButton",
-                      "type": "button",
-                      "label": "Attach from Matter",
-                      "icons": [
-                        {
-                          "size": 16,
-                          "url": "https://localhost:3000/assets/icon-16.png"
-                        },
-                        {
-                          "size": 32,
-                          "url": "https://localhost:3000/assets/icon-32.png"
-                        },
-                        {
-                          "size": 80,
-                          "url": "https://localhost:3000/assets/icon-80.png"
-                        }
-                      ],
-                      "supertip": {
-                        "title": "Attach from Matter",
-                        "description": "Attach documents from a matter workspace."
-                      },
-                      "actionId": "ShowAttachFromMatter"
-                    }
-                  ]
-                }
-              ]
-            }
-          ],
-          "requirements": {
-            "scopes": [
-              "mail"
-            ],
-            "capabilities": [
-              {
-                "name": "Mailbox",
-                "minVersion": "1.8"
-              }
-            ]
-          }
-        },
-        {
-          "contexts": [
-            "default"
-          ],
+            "capabilities": [{ "name": "AddinCommands", "minVersion": "1.1" }],
+            "scopes": ["document"],
+            "formFactors": ["desktop"]
+          },
+          "contexts": ["default"],
           "tabs": [
             {
               "id": "GlobalAdvocateTab",
@@ -287,18 +83,9 @@
                   "id": "MatterWorkspaceGroup",
                   "label": "Matter workspace",
                   "icons": [
-                    {
-                      "size": 16,
-                      "url": "https://localhost:3000/assets/icon-16.png"
-                    },
-                    {
-                      "size": 32,
-                      "url": "https://localhost:3000/assets/icon-32.png"
-                    },
-                    {
-                      "size": 80,
-                      "url": "https://localhost:3000/assets/icon-80.png"
-                    }
+                    { "size": 16, "url": "https://localhost:3000/assets/icon-16.png" },
+                    { "size": 32, "url": "https://localhost:3000/assets/icon-32.png" },
+                    { "size": 80, "url": "https://localhost:3000/assets/icon-80.png" }
                   ],
                   "controls": [
                     {
@@ -306,18 +93,9 @@
                       "type": "button",
                       "label": "Save to Matter",
                       "icons": [
-                        {
-                          "size": 16,
-                          "url": "https://localhost:3000/assets/icon-16.png"
-                        },
-                        {
-                          "size": 32,
-                          "url": "https://localhost:3000/assets/icon-32.png"
-                        },
-                        {
-                          "size": 80,
-                          "url": "https://localhost:3000/assets/icon-80.png"
-                        }
+                        { "size": 16, "url": "https://localhost:3000/assets/icon-16.png" },
+                        { "size": 32, "url": "https://localhost:3000/assets/icon-32.png" },
+                        { "size": 80, "url": "https://localhost:3000/assets/icon-80.png" }
                       ],
                       "supertip": {
                         "title": "Save to Matter",
@@ -330,18 +108,9 @@
                       "type": "button",
                       "label": "Send as Attachment",
                       "icons": [
-                        {
-                          "size": 16,
-                          "url": "https://localhost:3000/assets/icon-16.png"
-                        },
-                        {
-                          "size": 32,
-                          "url": "https://localhost:3000/assets/icon-32.png"
-                        },
-                        {
-                          "size": 80,
-                          "url": "https://localhost:3000/assets/icon-80.png"
-                        }
+                        { "size": 16, "url": "https://localhost:3000/assets/icon-16.png" },
+                        { "size": 32, "url": "https://localhost:3000/assets/icon-32.png" },
+                        { "size": 80, "url": "https://localhost:3000/assets/icon-80.png" }
                       ],
                       "supertip": {
                         "title": "Send as Attachment",
@@ -353,11 +122,14 @@
                 }
               ]
             }
-          ],
-          "requirements": {
-            "scopes": [
-              "document"
-            ]
+          ]
+        }
+      ],
+      "alternates": [
+        {
+          "alternateIcons": {
+            "icon": { "size": 32, "url": "https://localhost:3000/assets/icon-32.png" },
+            "highResolutionIcon": { "size": 64, "url": "https://localhost:3000/assets/icon-64.png" }
           }
         }
       ]
