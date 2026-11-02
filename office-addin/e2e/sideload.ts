@@ -27,16 +27,33 @@ export function sideloadUrl(docUrl: string): string {
   const id = /<Id>([^<]+)<\/Id>/.exec(readFileSync(MANIFEST_FILE, "utf8"))?.[1];
   if (!id) throw new Error(`No <Id> in ${MANIFEST_FILE}`);
   const port = new URL(DEV_SERVER_ORIGIN).port;
-  return `${docUrl}&wdaddindevserverport=${port}&wdaddinmanifestfile=${MANIFEST_FILE}&wdaddinmanifestguid=${id}&wdaddintest=true`;
+  return `${docUrl}&wdaddindevserverport=${port}&wdaddinmanifestfile=${MANIFEST_FILE}&wdaddinmanifestguid=${id}${process.env.ADV_E2E_NO_TESTMODE ? "" : "&wdaddintest=true"}`;
 }
 
 /** Pipes page + iframe console output and page errors to <test output>/console.log (grep it; never dump DOM). */
 export function captureConsole(page: Page, testInfo: TestInfo): void {
   const file = testInfo.outputPath("console.log");
   const write = (line: string): void => appendFileSync(file, `${new Date().toISOString()} ${line}\n`);
-  page.on("console", (m) => write(`[${m.type()}] ${m.location().url?.startsWith(DEV_SERVER_ORIGIN) ? "PANE " : ""}${m.text()}`));
-  page.on("pageerror", (e) => write(`[pageerror] ${e.message}`));
-  page.on("requestfailed", (r) => r.url().startsWith(DEV_SERVER_ORIGIN) && write(`[requestfailed] ${r.url()} ${r.failure()?.errorText}`));
+  const attach = (p: Page, tag: string): void => {
+    p.on("console", (m) => write(`[${m.type()}] ${tag}${m.location().url?.startsWith(DEV_SERVER_ORIGIN) ? "PANE " : ""}${m.text()}`));
+    p.on("pageerror", (e) => write(`[pageerror] ${tag}${e.message}`));
+    p.on("requestfailed", (r) => write(`[requestfailed] ${tag}${r.url().slice(0, 200)} ${r.failure()?.errorText}`));
+    p.on("response", (r) => r.status() >= 400 && write(`[http ${r.status()}] ${tag}${r.url().slice(0, 200)}`));
+  };
+  attach(page, "");
+  // Sign-in relay and IdP popups are separate pages.
+  page.context().on("page", (p) => {
+    write(`[popup] opened ${p.url().slice(0, 120)}`);
+    attach(p, "POPUP ");
+  });
+}
+
+/** Office on the web asks once per browser profile before URL-param sideload works; the modal hides the ribbon. */
+async function acceptDeveloperMode(frame: Frame): Promise<void> {
+  const dialog = frame.getByRole("dialog", { name: "Enable Developer Mode" });
+  if (await dialog.isVisible().catch(() => false)) {
+    await dialog.getByRole("button", { name: "OK" }).click();
+  }
 }
 
 /** First frame (any depth) where the ribbon tab is visible; Office on the web hosts the ribbon in a nested frame. */
@@ -46,6 +63,7 @@ async function findRibbonFrame(page: Page, tabName: string): Promise<Frame> {
     .poll(
       async () => {
         for (const frame of page.frames()) {
+          await acceptDeveloperMode(frame);
           if (await frame.getByRole("tab", { name: tabName }).first().isVisible().catch(() => false)) {
             found = frame;
             return true;
@@ -78,4 +96,27 @@ export async function openPane(page: Page, docUrl: string, buttonName: string): 
   await ribbon.getByRole("tab", { name: "Global Advocate" }).first().click();
   await ribbon.getByRole("button", { name: buttonName }).first().click();
   return findPaneFrame(page);
+}
+
+/**
+ * Signs the pane in. NAA works silently where Office provides its bridge; the web dev sideload gets none, so the pane
+ * falls back to the MSAL popup relay: Sign in → relay page (Continue) → IdP popup, which completes from the saved session.
+ */
+export async function signIn(page: Page, pane: Frame): Promise<void> {
+  const user = pane.getByTestId("app-user");
+  const button = pane.getByTestId("app-signin-button");
+  await expect(user.or(button)).toBeVisible({ timeout: 60_000 });
+  if (await user.isVisible()) return;
+
+  // shortcut: one retry, because the MSAL relay closes right after posting and the pane sometimes reports
+  // user_cancelled (~1 in 3 runs); upgrade if it shows up outside dev sideload or MSAL fixes the race.
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const relayPromise = page.context().waitForEvent("page");
+    await button.click();
+    const relay = await relayPromise;
+    await relay.getByTestId("auth-relay-continue").click();
+    await relay.waitForEvent("close", { timeout: 60_000 });
+    await expect(user.or(button)).toBeVisible({ timeout: 30_000 });
+    if (await user.isVisible()) return;
+  }
 }

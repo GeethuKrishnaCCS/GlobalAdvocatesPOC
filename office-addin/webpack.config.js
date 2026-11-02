@@ -90,6 +90,10 @@ module.exports = async (env, options) => {
         Promise: ["es6-promise", "Promise"],
       }),
     ],
+    // The manifest* copy glob watches the project root; E2E output/session writes would rebuild + reload the pane mid-test.
+    watchOptions: {
+      ignored: ["**/node_modules/**", "**/e2e/**", "**/.auth/**", "**/test-results/**", "**/dist/**", "**/scripts/**"],
+    },
     devServer: {
       hot: true,
       headers: {

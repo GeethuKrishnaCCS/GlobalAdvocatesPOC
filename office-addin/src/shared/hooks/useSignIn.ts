@@ -2,7 +2,7 @@ import * as React from "react";
 import { getGraphToken } from "../auth/naa";
 import { graphClient } from "../services/graphClient";
 
-/* global setTimeout */
+/* global setTimeout, atob */
 
 /** A silent sign-in that has not settled by then is treated as failed, so the Sign in button shows. */
 const SIGN_IN_TIMEOUT_MS = 20000;
@@ -17,6 +17,20 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 interface IGraphUser {
   displayName: string;
   userPrincipalName: string;
+}
+
+/** Signed-in user from the Graph access token's claims (no extra Graph permission needed). */
+function userFromToken(accessToken: string): IGraphUser {
+  const payload = accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+  const claims = JSON.parse(atob(payload)) as {
+    name?: string;
+    upn?: string;
+    preferred_username?: string;
+  };
+  return {
+    displayName: claims.name ?? "",
+    userPrincipalName: claims.upn ?? claims.preferred_username ?? "",
+  };
 }
 
 export interface ISignIn {
@@ -37,10 +51,12 @@ export function useSignIn(): ISignIn {
     try {
       // Popup waits for the user, so only the silent path is time-boxed.
       const token = getGraphToken(allowPopup);
-      await (allowPopup
+      const accessToken = await (allowPopup
         ? token
         : withTimeout(token, SIGN_IN_TIMEOUT_MS, "Silent sign-in timed out."));
-      setUser(await graphClient.api("/me").select("displayName,userPrincipalName").get());
+      // Proves Graph with a scope the add-in holds; /me would need User.Read, which is not consented.
+      await graphClient.api("/sites/root").select("id").get();
+      setUser(userFromToken(accessToken));
     } catch (e) {
       setError((e as Error).message);
     } finally {

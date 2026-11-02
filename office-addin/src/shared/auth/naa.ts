@@ -1,15 +1,18 @@
 import {
   createNestablePublicClientApplication,
+  LogLevel,
   type AuthenticationResult,
   type IPublicClientApplication,
   type SilentRequest,
 } from "@azure/msal-browser";
 import { ENTRA_AUTHORITY, ENTRA_CLIENT_ID, GRAPH_SCOPES } from "../config";
 
-/* global Office, window */
+/* global Office, window, console, process */
 
 /** Registered SPA redirect URI on the Entra app (path only; origin is the add-in host). */
 const REDIRECT_PATH = "/taskpane.html";
+/** Query flag that turns taskpane.html into the MSAL popup-relay page (see index.tsx). */
+export const AUTH_RELAY_PARAM = "authRelay";
 
 let pcaPromise: Promise<IPublicClientApplication> | undefined;
 
@@ -20,8 +23,22 @@ function getPca(): Promise<IPublicClientApplication> {
       authority: ENTRA_AUTHORITY,
       // Must match the registered URI exactly; the pane URL carries ?view=…
       redirectUri: `${window.location.origin}${REDIRECT_PATH}`,
+      // No NAA bridge (e.g. Office on the web dev sideload): the pane is a partitioned cross-site iframe, so the popup
+      // result must come back through a first-party relay page. Ignored when NAA brokers the token.
+      popupRelayUri: `${window.location.origin}${REDIRECT_PATH}?${AUTH_RELAY_PARAM}=1`,
     },
     cache: { cacheLocation: "localStorage" },
+    // Dev builds: MSAL trace in the pane console, which the E2E harness captures (no PII).
+    system:
+      process.env.NODE_ENV === "production"
+        ? undefined
+        : {
+            loggerOptions: {
+              logLevel: LogLevel.Verbose,
+              piiLoggingEnabled: false,
+              loggerCallback: (_level, message) => console.log(`[msal] ${message}`),
+            },
+          },
   });
   return pcaPromise;
 }
@@ -41,14 +58,32 @@ async function getLoginHint(): Promise<string | undefined> {
   }
 }
 
+/** Token from the MSAL cache for an account already signed in here (e.g. by an earlier popup), else undefined. */
+async function tryCachedToken(
+  pca: IPublicClientApplication,
+  loginHint: string | undefined
+): Promise<string | undefined> {
+  const accounts = pca.getAllAccounts();
+  const account =
+    accounts.find((a) => a.username.toLowerCase() === loginHint?.toLowerCase()) ?? accounts[0];
+  if (!account) return undefined;
+  try {
+    return (await pca.acquireTokenSilent({ scopes: GRAPH_SCOPES, account })).accessToken;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
- * Graph access token for the signed-in Office user. Silent first (ssoSilent with the Office login hint,
- * else acquireTokenSilent); falls back to an MSAL popup, which must run from a user click.
+ * Graph access token for the signed-in Office user. Cache first, then silent SSO (ssoSilent with the Office login
+ * hint, brokered by NAA where available); falls back to an MSAL popup, which must run from a user click.
  * Pattern from OfficeDev/Office-Add-in-samples Samples/auth/Office-Add-in-SSO-NAA (authConfig.ts).
  */
 export async function getGraphToken(allowPopup = false): Promise<string> {
   const pca = await getPca();
   const loginHint = await getLoginHint();
+  const cached = await tryCachedToken(pca, loginHint);
+  if (cached) return cached;
   try {
     const result: AuthenticationResult = loginHint
       ? await pca.ssoSilent({ scopes: GRAPH_SCOPES, loginHint })
