@@ -6,7 +6,8 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
 
 const urlDev = "https://localhost:3000/";
-const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+// Hosting origin for production builds; set by scripts/Deploy-AdvAddinWeb.ps1.
+const urlProd = process.env.ADV_ADDIN_URL_PROD || "https://www.contoso.com/";
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -78,7 +79,8 @@ module.exports = async (env, options) => {
               if (dev) {
                 return content;
               } else {
-                return content.toString().replace(new RegExp(urlDev, "g"), urlProd);
+                // Without trailing slash so AppDomain entries are rewritten too.
+                return content.toString().replaceAll(urlDev.replace(/\/$/, ""), urlProd.replace(/\/$/, ""));
               }
             },
           },

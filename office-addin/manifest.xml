@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<!-- Dev sideload manifest (add-in only). office-addin-debugging can sideload only XML to Word on the web; manifest.json is the deployment manifest. -->
+<!-- Add-in only (XML) manifest for Word, Excel, PowerPoint: URL-param dev sideload on the web + scripted centralized deployment (New-OrganizationAddIn accepts XML only). manifest.json is not deployed. -->
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
   <Id>34ca07a9-c204-475a-a213-694399a38430</Id>
-  <Version>1.0.1.0</Version>
+  <Version>1.0.2.0</Version>
   <ProviderName>ADVTest POC</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
   <DisplayName DefaultValue="Global Advocate (ADVTest dev)"/>
-  <Description DefaultValue="Save Word documents to a matter and send them as Outlook drafts."/>
+  <Description DefaultValue="Save Word, Excel and PowerPoint files to a matter and send them as Outlook drafts."/>
   <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-64.png"/>
   <SupportUrl DefaultValue="https://localhost:3000/taskpane.html"/>
@@ -15,6 +15,8 @@
   </AppDomains>
   <Hosts>
     <Host Name="Document"/>
+    <Host Name="Workbook"/>
+    <Host Name="Presentation"/>
   </Hosts>
   <DefaultSettings>
     <SourceLocation DefaultValue="https://localhost:3000/taskpane.html?view=save"/>
@@ -23,6 +25,114 @@
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
     <Hosts>
       <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Description"/>
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
+          </GetStarted>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <CustomTab id="GlobalAdvocateTab">
+              <Group id="MatterWorkspaceGroup">
+                <Label resid="MatterWorkspaceGroup.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16"/>
+                  <bt:Image size="32" resid="Icon.32x32"/>
+                  <bt:Image size="80" resid="Icon.80x80"/>
+                </Icon>
+                <Control xsi:type="Button" id="SaveToMatterButton">
+                  <Label resid="SaveToMatter.Label"/>
+                  <Supertip>
+                    <Title resid="SaveToMatter.Label"/>
+                    <Description resid="SaveToMatter.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>SaveToMatter</TaskpaneId>
+                    <SourceLocation resid="SaveToMatter.Url"/>
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="SendAsAttachmentButton">
+                  <Label resid="SendAsAttachment.Label"/>
+                  <Supertip>
+                    <Title resid="SendAsAttachment.Label"/>
+                    <Description resid="SendAsAttachment.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>SendAsAttachment</TaskpaneId>
+                    <SourceLocation resid="SendAsAttachment.Url"/>
+                  </Action>
+                </Control>
+              </Group>
+              <Label resid="GlobalAdvocateTab.Label"/>
+            </CustomTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+      <Host xsi:type="Workbook">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title"/>
+            <Description resid="GetStarted.Description"/>
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl"/>
+          </GetStarted>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <CustomTab id="GlobalAdvocateTab">
+              <Group id="MatterWorkspaceGroup">
+                <Label resid="MatterWorkspaceGroup.Label"/>
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16x16"/>
+                  <bt:Image size="32" resid="Icon.32x32"/>
+                  <bt:Image size="80" resid="Icon.80x80"/>
+                </Icon>
+                <Control xsi:type="Button" id="SaveToMatterButton">
+                  <Label resid="SaveToMatter.Label"/>
+                  <Supertip>
+                    <Title resid="SaveToMatter.Label"/>
+                    <Description resid="SaveToMatter.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>SaveToMatter</TaskpaneId>
+                    <SourceLocation resid="SaveToMatter.Url"/>
+                  </Action>
+                </Control>
+                <Control xsi:type="Button" id="SendAsAttachmentButton">
+                  <Label resid="SendAsAttachment.Label"/>
+                  <Supertip>
+                    <Title resid="SendAsAttachment.Label"/>
+                    <Description resid="SendAsAttachment.Tooltip"/>
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16x16"/>
+                    <bt:Image size="32" resid="Icon.32x32"/>
+                    <bt:Image size="80" resid="Icon.80x80"/>
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>SendAsAttachment</TaskpaneId>
+                    <SourceLocation resid="SendAsAttachment.Url"/>
+                  </Action>
+                </Control>
+              </Group>
+              <Label resid="GlobalAdvocateTab.Label"/>
+            </CustomTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+      <Host xsi:type="Presentation">
         <DesktopFormFactor>
           <GetStarted>
             <Title resid="GetStarted.Title"/>
