@@ -2,6 +2,18 @@ import * as React from "react";
 import { getGraphToken } from "../auth/naa";
 import { graphClient } from "../services/graphClient";
 
+/* global setTimeout */
+
+/** A silent sign-in that has not settled by then is treated as failed, so the Sign in button shows. */
+const SIGN_IN_TIMEOUT_MS = 20000;
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(message)), ms)),
+  ]);
+}
+
 interface IGraphUser {
   displayName: string;
   userPrincipalName: string;
@@ -23,7 +35,11 @@ export function useSignIn(): ISignIn {
     setIsLoading(true);
     setError(undefined);
     try {
-      await getGraphToken(allowPopup);
+      // Popup waits for the user, so only the silent path is time-boxed.
+      const token = getGraphToken(allowPopup);
+      await (allowPopup
+        ? token
+        : withTimeout(token, SIGN_IN_TIMEOUT_MS, "Silent sign-in timed out."));
       setUser(await graphClient.api("/me").select("displayName,userPrincipalName").get());
     } catch (e) {
       setError((e as Error).message);
