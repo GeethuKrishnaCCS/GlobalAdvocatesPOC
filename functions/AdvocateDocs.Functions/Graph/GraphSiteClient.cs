@@ -78,6 +78,19 @@ public sealed class GraphSiteClient(HttpClient http, TokenCredential credential)
         return await response.Content.ReadAsByteArrayAsync(ct);
     }
 
+    /// <summary>SharePoint's rendered preview image of a file (first page only); null when it has none.</summary>
+    public async Task<byte[]?> DownloadPreviewImageAsync(string driveId, string itemId, CancellationToken ct)
+    {
+        using var response = await SendAsync(() => new HttpRequestMessage(HttpMethod.Get,
+            $"{GraphRoot}/drives/{driveId}/items/{itemId}/thumbnails/0/c1600x1600/content"), ct);
+        if (response.StatusCode is HttpStatusCode.NotFound or HttpStatusCode.BadRequest)
+        {
+            return null;
+        }
+        await EnsureSuccessAsync(response, "download preview image");
+        return await response.Content.ReadAsByteArrayAsync(ct);
+    }
+
     /// <summary>Uploads (replacing, which adds a version) a file of any size to a drive path; returns the drive item and its list item id.</summary>
     public async Task<(DriveItemRef Item, int ListItemId)> UploadAsync(string driveId, string path, byte[] content, CancellationToken ct)
     {
@@ -102,6 +115,16 @@ public sealed class GraphSiteClient(HttpClient http, TokenCredential credential)
         var withListItem = await GetJsonAsync($"/drives/{driveId}/items/{itemId}?$select=id,name,webUrl&$expand=listItem($select=id)", ct);
         return (new DriveItemRef(driveId, itemId, withListItem["name"]!.GetValue<string>(), withListItem["webUrl"]!.GetValue<string>()),
             int.Parse(withListItem["listItem"]!["id"]!.GetValue<string>()));
+    }
+
+    /// <summary>Deletes a drive item (to the recycle bin); a missing item is not an error.</summary>
+    public async Task DeleteAsync(string driveId, string itemId, CancellationToken ct)
+    {
+        using var response = await SendAsync(() => new HttpRequestMessage(HttpMethod.Delete, $"{GraphRoot}/drives/{driveId}/items/{itemId}"), ct);
+        if (response.StatusCode != HttpStatusCode.NotFound)
+        {
+            await EnsureSuccessAsync(response, "delete temporary copy");
+        }
     }
 
     public async Task<JsonObject> GetListItemFieldsAsync(string siteId, string listId, int itemId, CancellationToken ct)

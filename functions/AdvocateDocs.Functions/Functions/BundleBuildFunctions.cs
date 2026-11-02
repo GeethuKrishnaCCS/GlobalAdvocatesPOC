@@ -63,14 +63,19 @@ public sealed partial class BundleBuildFunctions(IOptions<SharePointOptions> sha
         {
             return "webUrl, bundleId and lists are required.";
         }
-        if (!Uri.TryCreate(body.WebUrl, UriKind.Absolute, out var url) || url.Scheme != Uri.UriSchemeHttps
-            || !url.Host.Equals(sharePoint.Value.Host, StringComparison.OrdinalIgnoreCase))
-        {
-            return "webUrl must be a site in this tenant.";
-        }
-        var names = new[] { body.Lists.Documents, body.Lists.Bundles, body.Lists.Registry, body.Lists.Items, body.Lists.Manifests };
-        return names.All(n => n is not null && ListName().IsMatch(n)) ? null : "List names must be URL names (letters, digits, - and _).";
+        var names = new[] { body.Lists.Documents, body.Lists.Bundles, body.Lists.Registry, body.Lists.Items, body.Lists.Manifests }
+            .Concat(body.Lists.Conversion is null ? [] : [body.Lists.Conversion]);
+        return ValidateSite(body.WebUrl, sharePoint.Value.Host) ?? ValidateListNames(names);
     }
+
+    /// <summary>Null when <paramref name="webUrl"/> is an https site on the tenant host, else the problem.</summary>
+    internal static string? ValidateSite(string? webUrl, string host)
+        => Uri.TryCreate(webUrl, UriKind.Absolute, out var url) && url.Scheme == Uri.UriSchemeHttps
+            && url.Host.Equals(host, StringComparison.OrdinalIgnoreCase) ? null : "webUrl must be a site in this tenant.";
+
+    /// <summary>Null when every name is a plain URL segment, else the problem.</summary>
+    internal static string? ValidateListNames(IEnumerable<string?> names)
+        => names.All(n => n is not null && ListName().IsMatch(n)) ? null : "List names must be URL names (letters, digits, - and _).";
 }
 
 /// <summary>SharePoint tenant the Function serves (app settings section <c>SharePoint</c>).</summary>

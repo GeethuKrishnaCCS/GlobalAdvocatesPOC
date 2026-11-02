@@ -43,7 +43,7 @@ public static class BuildBundleOrchestrator
         {
             context.SetCustomStatus(new BuildProgress("converting", converted.Count, plan.Members.Count));
             var tasks = batch.Select(m => context.CallActivityAsync<ConvertedMember>(nameof(BundleActivities.ConvertMember),
-                new ConvertInput(workPrefix, plan.SiteId, plan.DocumentsListId, m), Retry));
+                new ConvertInput(workPrefix, plan.SiteId, plan.DocumentsListId, m, plan.ConversionListId), Retry));
             converted.AddRange(await Task.WhenAll(tasks));
         }
 

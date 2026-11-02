@@ -19,9 +19,11 @@ public static class PdfBundleAssembler
     private const double StampSize = 9;
     private const double StampPadding = 3;
     private const int IndexTitleChars = 78;
+    private const double AttachmentIndent = 16;
 
     public static AssembledBundle Assemble(string bundleTitle, IReadOnlyList<MemberPdf> members)
     {
+        // Stable sort: email attachments share their email's Order and keep their position right after it.
         var documents = members.OrderBy(m => m.Order).Select(m => (Member: m, Doc: PdfDocument.Open(m.Pdf))).ToList();
         try
         {
@@ -30,7 +32,8 @@ public static class PdfBundleAssembler
             var next = indexPages + 1;
             foreach (var (member, doc) in documents)
             {
-                entries.Add(new IndexEntry(member.Order, member.Title, member.Kind, next, next + doc.NumberOfPages - 1, member.Note));
+                entries.Add(new IndexEntry(member.Order, member.Title, member.Kind, next, next + doc.NumberOfPages - 1, member.Note,
+                    member.Label ?? member.Order.ToString(System.Globalization.CultureInfo.InvariantCulture), member.Level));
                 next += doc.NumberOfPages;
             }
             var pageCount = next - 1;
@@ -55,8 +58,8 @@ public static class PdfBundleAssembler
             {
                 new DocumentBookmarkNode("Index", 0, PageDestination(1), [])
             };
-            bookmarks.AddRange(entries.Select(e =>
-                new DocumentBookmarkNode($"{e.Order}. {PdfText.ToWinAnsi(e.Title)}", 0, PageDestination(e.StartPage), [])));
+            var position = 0;
+            bookmarks.AddRange(BookmarkNodes(entries, ref position, 0));
             builder.Bookmarks = new Bookmarks(bookmarks);
 
             return new AssembledBundle(builder.Build(), pageCount, indexPages, entries);
@@ -65,6 +68,21 @@ public static class PdfBundleAssembler
         {
             documents.ForEach(d => d.Doc.Dispose());
         }
+    }
+
+    /// <summary>The PDFs' pages one after another, without index or stamps (Print).</summary>
+    public static byte[] Concatenate(IEnumerable<byte[]> pdfs)
+    {
+        using var builder = new PdfDocumentBuilder();
+        foreach (var pdf in pdfs)
+        {
+            using var doc = PdfDocument.Open(pdf);
+            for (var p = 1; p <= doc.NumberOfPages; p++)
+            {
+                builder.AddPage(doc, p);
+            }
+        }
+        return builder.Build();
     }
 
     private static void WriteIndex(PdfDocumentBuilder builder, string bundleTitle, IReadOnlyList<IndexEntry> entries,
@@ -87,10 +105,12 @@ public static class PdfBundleAssembler
             foreach (var entry in entries.Skip(pageIndex * IndexRowsPerPage).Take(IndexRowsPerPage))
             {
                 var pages = entry.StartPage == entry.EndPage ? $"{entry.StartPage}" : $"{entry.StartPage}-{entry.EndPage}";
-                var title = PdfText.Truncate(PdfText.ToWinAnsi(entry.Title), IndexTitleChars)
-                    + (entry.Kind == MemberKind.Placeholder ? " (not included)" : string.Empty);
-                page.AddText($"{entry.Order}", 9, new PdfPoint(Margin, y), regular);
-                page.AddText(title, 9, new PdfPoint(Margin + 34, y), regular);
+                var title = PdfText.Truncate(PdfText.ToWinAnsi(entry.Title), IndexTitleChars - entry.Level * 4)
+                    + entry.Kind switch { MemberKind.Placeholder => " (not included)", MemberKind.Preview => " (preview only)", _ => string.Empty };
+                // Attachments are indented under their email.
+                var indent = entry.Level * AttachmentIndent;
+                page.AddText(entry.Label, 9, new PdfPoint(Margin + indent, y), regular);
+                page.AddText(title, 9, new PdfPoint(Margin + 34 + indent, y), regular);
                 page.AddText(pages, 9, new PdfPoint(right - 64, y), regular);
                 y -= 21;
             }
@@ -113,6 +133,19 @@ public static class PdfBundleAssembler
         page.SetTextAndFillColor(0, 0, 0);
         page.AddText(text, StampSize, new PdfPoint(x, y), font);
         page.ResetColor();
+    }
+
+    /// <summary>Bookmarks for entries at <paramref name="level"/>; deeper entries that follow (attachments) nest under them.</summary>
+    private static List<BookmarkNode> BookmarkNodes(IReadOnlyList<IndexEntry> entries, ref int position, int level)
+    {
+        var nodes = new List<BookmarkNode>();
+        while (position < entries.Count && entries[position].Level == level)
+        {
+            var entry = entries[position++];
+            var children = BookmarkNodes(entries, ref position, level + 1);
+            nodes.Add(new DocumentBookmarkNode($"{entry.Label}. {PdfText.ToWinAnsi(entry.Title)}", level, PageDestination(entry.StartPage), children));
+        }
+        return nodes;
     }
 
     private static ExplicitDestination PageDestination(int page)

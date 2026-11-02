@@ -8,6 +8,13 @@
   "manifestVersion": 2,
   "requiresCustomScript": false,
   "items": {
+    "PRINT": {
+      "title": {
+        "default": "Print"
+      },
+      "type": "command",
+      "iconImageUrl": "data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAyMCAyMCc+PHBhdGggZmlsbD0nIzMyMzEzMCcgZD0nTTYgMy41QTEuNSAxLjUgMCAwIDEgNy41IDJoNUExLjUgMS41IDAgMCAxIDE0IDMuNVY2aDFhMiAyIDAgMCAxIDIgMnY1YTEgMSAwIDAgMS0xIDFoLTJ2Mi41YTEuNSAxLjUgMCAwIDEtMS41IDEuNWgtNUExLjUgMS41IDAgMCAxIDYgMTYuNVYxNEg0YTEgMSAwIDAgMS0xLTFWOGEyIDIgMCAwIDEgMi0yaDFWMy41Wk03IDZoNlYzLjVhLjUuNSAwIDAgMC0uNS0uNWgtNWEuNS41IDAgMCAwLS41LjVWNlptMCA2djQuNWMwIC4zLjIuNS41LjVoNWMuMyAwIC41LS4yLjUtLjVWMTJIN1pNNSA3YTEgMSAwIDAgMC0xIDF2NWgydi0xYTEgMSAwIDAgMSAxLTFoNmExIDEgMCAwIDEgMSAxdjFoMlY4YTEgMSAwIDAgMC0xLTFINVonLz48L3N2Zz4="
+    },
     "PREVIEW": {
       "title": {
         "default": "Preview"

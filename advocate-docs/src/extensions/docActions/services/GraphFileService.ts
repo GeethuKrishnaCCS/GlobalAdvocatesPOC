@@ -3,8 +3,6 @@ import { ResponseType } from '@microsoft/microsoft-graph-client';
 import type { ISelectedDocument } from '../models/ISelectedDocument';
 import type { IDocumentVersion, IDriveItemRef, IFilePayload } from '../models/ISend';
 
-/** Library folder for short-lived copies of old versions being converted to PDF; each copy is deleted after use. */
-const CONVERSION_FOLDER: string = '_ADVTestConversion';
 /** Types already PDF — "as PDF" sends them unchanged. */
 const PDF_TYPE: string = 'pdf';
 
@@ -29,7 +27,12 @@ export class GraphFileService {
     private readonly _graph: MSGraphClientV3,
     /** Graph site id: "{hostname},{siteCollectionId},{webId}". */
     private readonly _siteId: string,
-    private readonly _listId: string
+    private readonly _listId: string,
+    /**
+     * Id of the hidden library that holds short-lived copies of old versions being converted to PDF
+     * (resolved only when a conversion is needed; each copy is deleted after use).
+     */
+    private readonly _getConversionListId: () => Promise<string>
   ) {}
 
   public async resolve(doc: ISelectedDocument): Promise<IDriveItemRef> {
@@ -74,12 +77,12 @@ export class GraphFileService {
     if (!asPdf || this._isPdf(ref.name)) {
       return { name: versionedName, bytes, versionLabel: version.label };
     }
-    const tempId: string = await this._uploadTemp(ref.driveId, `${Date.now()}_${ref.name}`, bytes);
+    const temp: IDriveItemRef = await this._uploadTemp(`${Date.now()}_${ref.name}`, bytes);
     try {
-      const pdf: ArrayBuffer = await this._download(`/drives/${ref.driveId}/items/${tempId}/content?format=pdf`);
+      const pdf: ArrayBuffer = await this._download(`/drives/${temp.driveId}/items/${temp.itemId}/content?format=pdf`);
       return { name: toPdfName(versionedName), bytes: pdf, versionLabel: version.label };
     } finally {
-      await this._graph.api(`/drives/${ref.driveId}/items/${tempId}`).delete().catch(() => undefined);
+      await this._graph.api(`/drives/${temp.driveId}/items/${temp.itemId}`).delete().catch(() => undefined);
     }
   }
 
@@ -97,11 +100,13 @@ export class GraphFileService {
     return this._graph.api(path).responseType(ResponseType.ARRAYBUFFER).get();
   }
 
-  private async _uploadTemp(driveId: string, fileName: string, bytes: ArrayBuffer): Promise<string> {
-    const path: string = `/drives/${driveId}/root:/${CONVERSION_FOLDER}/${encodeURIComponent(fileName)}:/content`;
+  private async _uploadTemp(fileName: string, bytes: ArrayBuffer): Promise<IDriveItemRef> {
+    const listId: string = await this._getConversionListId();
+    const path: string = `/sites/${this._siteId}/lists/${listId}/drive/root:/${encodeURIComponent(fileName)}:/content`;
     // A Blob, not an ArrayBuffer: the Graph client's ArrayBuffer path relies on Node's Buffer, absent in browsers.
     const body: Blob = new Blob([bytes], { type: 'application/octet-stream' });
-    const item: { id: string } = await this._graph.api(path).header('Content-Type', 'application/octet-stream').put(body);
-    return item.id;
+    const item: { id: string; name: string; size: number; parentReference: { driveId: string } } = await this._graph
+      .api(path).header('Content-Type', 'application/octet-stream').put(body);
+    return { driveId: item.parentReference.driveId, itemId: item.id, name: item.name, size: item.size };
   }
 }

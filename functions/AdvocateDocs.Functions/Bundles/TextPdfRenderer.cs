@@ -29,10 +29,19 @@ public static class TextPdfRenderer
         {
             $"From:    {message.From}",
             $"To:      {message.To}",
-            $"Date:    {message.Date:yyyy-MM-dd HH:mm zzz}",
-            $"Subject: {message.Subject}",
-            new('-', CharsPerLine)
         };
+        if (message.Cc.Count > 0)
+        {
+            lines.Add($"Cc:      {message.Cc}");
+        }
+        lines.Add($"Date:    {message.Date:yyyy-MM-dd HH:mm zzz}");
+        lines.Add($"Subject: {message.Subject}");
+        var attachments = EmailAttachments.Names(message);
+        if (attachments.Count > 0)
+        {
+            lines.Add($"Attachments: {string.Join(", ", attachments)}");
+        }
+        lines.Add(new string('-', CharsPerLine));
         lines.AddRange(body.Replace("\r\n", "\n").Split('\n'));
         return Render(title, lines);
     }

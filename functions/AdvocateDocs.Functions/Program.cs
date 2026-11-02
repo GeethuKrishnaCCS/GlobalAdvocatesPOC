@@ -2,6 +2,7 @@ using AdvocateDocs.Functions.Auth;
 using AdvocateDocs.Functions.Bundles;
 using AdvocateDocs.Functions.Functions;
 using AdvocateDocs.Functions.Graph;
+using AdvocateDocs.Functions.SharePoint;
 using Azure.Core;
 using Azure.Identity;
 using Azure.Storage.Blobs;
@@ -27,6 +28,9 @@ var host = new HostBuilder()
         // Managed identity in Azure; developer sign-in (az / Visual Studio) when running locally.
         services.AddSingleton<TokenCredential>(_ => new DefaultAzureCredential(new DefaultAzureCredentialOptions { ExcludeInteractiveBrowserCredential = true }));
         services.AddHttpClient<GraphSiteClient>(c => c.Timeout = TimeSpan.FromMinutes(5));
+        services.AddHttpClient<SharePointRestClient>();
+        services.AddTransient<EmailBundleConverter>();
+        services.AddTransient<MemberConverter>();
         services.AddSingleton(_ => new BlobServiceClient(config["AzureWebJobsStorage"]));
         services.AddSingleton<BundleWorkStore>();
     })

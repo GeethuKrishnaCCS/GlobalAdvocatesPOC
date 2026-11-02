@@ -3,7 +3,8 @@
     Grants the AdvocateDocs Function's managed identity Graph Sites.Selected and write access to one matter site.
 .DESCRIPTION
     Two tenant-level grants, run once per environment by an admin (not by automation):
-      1. App role Microsoft Graph / Sites.Selected on the Function's managed identity (az rest, signed-in admin).
+      1. App roles Sites.Selected on Microsoft Graph and on SharePoint Online for the Function's managed identity
+         (signed-in az admin). The SharePoint role is for REST column updates that add no version.
       2. Site permission 'write' for that identity on the matter site only (PnP, project certificate app).
     Sites.Selected gives no access anywhere until a site is granted explicitly, so the Function can only touch
     the sites listed here.
@@ -28,6 +29,7 @@ param(
 )
 $ErrorActionPreference = 'Stop'
 $graphAppId = '00000003-0000-0000-c000-000000000000'
+$sharePointAppId = '00000003-0000-0ff1-ce00-000000000000'
 
 # az rest goes through cmd.exe, which mangles Graph URLs with (), $ and quotes; call Graph directly with az's token.
 $script:GraphToken = $null
@@ -48,21 +50,28 @@ try {
     if (-not $principalId) { throw "Function $($azure.functionApp) has no managed identity." }
 
     $mi = Invoke-Graph GET "https://graph.microsoft.com/v1.0/servicePrincipals/$principalId`?`$select=id,appId,displayName"
-    $graph = Invoke-Graph GET "https://graph.microsoft.com/v1.0/servicePrincipals(appId='$graphAppId')?`$select=id,appRoles"
-    $roleId = ($graph.appRoles | Where-Object value -eq 'Sites.Selected').id
-    $existing = (Invoke-Graph GET "https://graph.microsoft.com/v1.0/servicePrincipals/$principalId/appRoleAssignments").value |
-        Where-Object { $_.appRoleId -eq $roleId }
+    $assigned = (Invoke-Graph GET "https://graph.microsoft.com/v1.0/servicePrincipals/$principalId/appRoleAssignments").value
+    # Sites.Selected on both APIs: Graph for files/lists, SharePoint REST for column updates without a new version.
+    $roles = foreach ($resource in @(@{ Name = 'Microsoft Graph'; AppId = $graphAppId }, @{ Name = 'SharePoint Online'; AppId = $sharePointAppId })) {
+        $sp = Invoke-Graph GET "https://graph.microsoft.com/v1.0/servicePrincipals(appId='$($resource.AppId)')?`$select=id,appRoles"
+        $roleId = ($sp.appRoles | Where-Object value -eq 'Sites.Selected').id
+        [pscustomobject]@{ Name = $resource.Name; ResourceId = $sp.id; RoleId = $roleId
+            Assigned = [bool]($assigned | Where-Object { $_.resourceId -eq $sp.id -and $_.appRoleId -eq $roleId }) }
+    }
     $siteUrl = "$($config.tenants.dev.url)/sites/$Alias"
 
     Write-Information "Managed identity: $($mi.displayName) (appId $($mi.appId))" -InformationAction Continue
-    Write-Information "1. Graph Sites.Selected: $(if ($existing) { 'already assigned' } else { 'to assign' })" -InformationAction Continue
+    foreach ($role in $roles) {
+        Write-Information "1. $($role.Name) Sites.Selected: $(if ($role.Assigned) { 'already assigned' } else { 'to assign' })" -InformationAction Continue
+    }
     Write-Information "2. Site write on $siteUrl" -InformationAction Continue
     if (-not $Execute) { Write-Warning 'Plan only — nothing granted. Re-run with -Execute.'; return }
 
-    if (-not $existing) {
+    foreach ($role in $roles | Where-Object { -not $_.Assigned }) {
         Invoke-Graph POST "https://graph.microsoft.com/v1.0/servicePrincipals/$principalId/appRoleAssignments" @{
-            principalId = $principalId; resourceId = $graph.id; appRoleId = $roleId
+            principalId = $principalId; resourceId = $role.ResourceId; appRoleId = $role.RoleId
         } | Out-Null
+        Write-Information "Assigned $($role.Name) Sites.Selected." -InformationAction Continue
     }
     # Site grants need Graph Sites.FullControl.All, which neither az nor the automation app holds (by design):
     # an admin completes step 2 in Graph Explorer.

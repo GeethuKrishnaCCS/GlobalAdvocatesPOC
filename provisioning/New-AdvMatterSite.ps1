@@ -44,6 +44,8 @@ $lists = @(
     @{ Name = 'ADVTestBundleManifests'; Template = 'DocumentLibrary'; Label = 'Bundle manifests (test)' }
     # One row per bundle (header); members live in ADVTestBundleItems keyed by BundleId.
     @{ Name = 'ADVTestBundleRegistry';  Template = 'GenericList';     Label = 'Bundle registry (test)' }
+    # Scratch copies for "send previous version as PDF" (Graph converts only current files). Hidden, unversioned.
+    @{ Name = 'ADVTestConversion';      Template = 'DocumentLibrary'; Label = 'Conversion scratch (test)'; Hidden = $true }
 )
 
 $fields = @(
@@ -93,9 +95,9 @@ try {
     $existingLists = @(Get-SpoList -IncludeHidden | ForEach-Object Name)
     foreach ($l in $lists) {
         if ($existingLists -contains $l.Name) { continue }
-        # Manifests are system data — kept out of the quick launch.
-        $onQuickLaunch = $l.Name -ne 'ADVTestBundleManifests'
-        $ledger.Add((New-SpoList @l -OnQuickLaunch:$onQuickLaunch -Execute:$Execute))
+        # Manifests and scratch are system data — kept out of the quick launch.
+        $onQuickLaunch = $l.Name -ne 'ADVTestBundleManifests' -and -not $l.Hidden
+        $ledger.Add((New-SpoList -Name $l.Name -Template $l.Template -Label $l.Label -OnQuickLaunch:$onQuickLaunch -Execute:$Execute))
     }
     if (-not $Execute) { $ledger; return }
 
@@ -114,10 +116,15 @@ try {
     $config = Get-Content (Join-Path $projectsRoot "Repos/$project/.project.json") -Raw | ConvertFrom-Json
     $conn = Connect-PnPOnline -Url $siteUrl -ClientId $config.entraClientId -Thumbprint $config.entraCertThumbprint `
         -Tenant $config.tenants.dev.tenantId -ReturnConnection
-    foreach ($l in $lists | Where-Object Template -eq 'DocumentLibrary') {
+    foreach ($l in $lists | Where-Object { $_.Template -eq 'DocumentLibrary' -and -not $_.Hidden }) {
         $listObj = Resolve-SpoList -Name $l.Name
         Set-PnPList -Identity $listObj.Id -EnableVersioning $true -MajorVersions 500 -Connection $conn | Out-Null
         $ledger.Add([pscustomobject]@{ Operation = 'Set versioning (major, 500)'; Object = $l.Name; Mode = 'EXECUTED' })
+    }
+    foreach ($l in $lists | Where-Object Hidden) {
+        $listObj = Resolve-SpoList -Name $l.Name
+        Set-PnPList -Identity $listObj.Id -Hidden $true -EnableVersioning $false -Connection $conn | Out-Null
+        $ledger.Add([pscustomobject]@{ Operation = 'Hide, versioning off'; Object = $l.Name; Mode = 'EXECUTED' })
     }
 }
 catch {

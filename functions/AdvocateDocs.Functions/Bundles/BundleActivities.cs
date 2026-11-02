@@ -1,13 +1,13 @@
 using System.Text.Json;
 using AdvocateDocs.Functions.Graph;
+using AdvocateDocs.Functions.SharePoint;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
-using UglyToad.PdfPig;
 
 namespace AdvocateDocs.Functions.Bundles;
 
 /// <summary>The bundle build's steps. Each is idempotent so Durable Functions can retry it.</summary>
-public sealed class BundleActivities(GraphSiteClient graph, BundleWorkStore work, ILogger<BundleActivities> logger)
+public sealed class BundleActivities(GraphSiteClient graph, SharePointRestClient sharePoint, MemberConverter converter, BundleWorkStore work, ILogger<BundleActivities> logger)
 {
     private static readonly string[] MemberFields = ["SortOrder", "SourceUniqueId", "SourceItemId", "IndexTitle"];
     private static readonly JsonSerializerOptions ManifestJson = new() { WriteIndented = true, PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -36,8 +36,15 @@ public sealed class BundleActivities(GraphSiteClient graph, BundleWorkStore work
                 f["IndexTitle"]?.GetValue<string>() ?? $"Document {i + 1}"))
             .ToList();
 
+        // Optional: without it, email attachments Graph would have to convert become placeholders.
+        string? conversionId = null;
+        if (request.Lists.Conversion is { } conversion && !lists.TryGetValue(conversion, out conversionId))
+        {
+            logger.LogWarning("Conversion library {Name} not found; Office-type email attachments will be placeholders", conversion);
+        }
+
         return new BundlePlan(siteId, ListId(request.Lists.Documents), ListId(request.Lists.Bundles), registryId, ListId(request.Lists.Manifests),
-            int.Parse(header["id"]!.GetValue<string>()), request.BundleId, header["fields"]!["Title"]!.GetValue<string>(), members);
+            int.Parse(header["id"]!.GetValue<string>()), request.BundleId, header["fields"]!["Title"]!.GetValue<string>(), members, conversionId);
     }
 
     /// <summary>Turns one member into PDF (as-is, Graph conversion, text rendering or a placeholder) and parks it in blob storage.</summary>
@@ -46,9 +53,18 @@ public sealed class BundleActivities(GraphSiteClient graph, BundleWorkStore work
     {
         var m = input.Member;
         var blobName = $"{input.WorkPrefix}/members/{m.Order:D5}.pdf";
-        var (pdf, kind, note) = await ToPdfAsync(input, ct);
+        var (pdf, kind, note, attachments) = await converter.ConvertAsync(input, ct);
         await work.PutAsync(blobName, pdf, ct);
-        return new ConvertedMember(m.Order, m.Title, kind, blobName, m.SourceUniqueId, m.SourceItemId, note);
+
+        var parts = new List<ConvertedPart>(attachments.Count);
+        for (var i = 0; i < attachments.Count; i++)
+        {
+            var a = attachments[i];
+            var partBlob = $"{input.WorkPrefix}/members/{m.Order:D5}-a{i + 1:D3}.pdf";
+            await work.PutAsync(partBlob, a.Pdf, ct);
+            parts.Add(new ConvertedPart(a.Label, a.Level, a.Title, a.Kind, partBlob, a.Note));
+        }
+        return new ConvertedMember(m.Order, m.Title, kind, blobName, m.SourceUniqueId, m.SourceItemId, note, parts);
     }
 
     /// <summary>Builds the bundle PDF (index, stamps, bookmarks) from the parked members.</summary>
@@ -59,6 +75,10 @@ public sealed class BundleActivities(GraphSiteClient graph, BundleWorkStore work
         foreach (var m in input.Members)
         {
             members.Add(new MemberPdf(m.Order, m.Title, m.Kind, await work.GetAsync(m.BlobName, ct), m.Note));
+            foreach (var a in m.Attachments ?? [])
+            {
+                members.Add(new MemberPdf(m.Order, a.Title, a.Kind, await work.GetAsync(a.BlobName, ct), a.Note, a.Label, a.Level));
+            }
         }
         var bundle = PdfBundleAssembler.Assemble(input.Title, members);
         var blobName = $"{input.WorkPrefix}/bundle.pdf";
@@ -77,9 +97,12 @@ public sealed class BundleActivities(GraphSiteClient graph, BundleWorkStore work
         var (file, fileItemId) = await graph.UploadAsync(bundlesDrive, $"{SafeFileName(plan.Title)}.pdf", pdf, ct);
         var fields = await graph.GetListItemFieldsAsync(plan.SiteId, plan.BundlesListId, fileItemId, ct);
         var version = (int)(fields["ManifestVersion"]?.GetValue<double>() ?? 0) + 1;
-        await graph.UpdateListItemFieldsAsync(plan.SiteId, plan.BundlesListId, fileItemId, new
+        var webUrl = new Uri(input.Build.Request.WebUrl);
+        // Columns go on the version the upload just created, so each build adds exactly one version.
+        await SetColumnsAsync(plan.SiteId, webUrl, plan.BundlesListId, fileItemId, new Dictionary<string, object>
         {
-            BundleId = plan.BundleId, ManifestVersion = version, BuildStatus = "Ready", PageCount = input.Assembled.PageCount, VolumeNo = 1
+            ["BundleId"] = plan.BundleId, ["ManifestVersion"] = version, ["BuildStatus"] = "Ready",
+            ["PageCount"] = input.Assembled.PageCount, ["VolumeNo"] = 1
         }, ct);
 
         var bySource = input.Members.ToDictionary(m => m.Order);
@@ -89,82 +112,39 @@ public sealed class BundleActivities(GraphSiteClient graph, BundleWorkStore work
             input.Assembled.PageCount, input.Assembled.IndexPageCount, PdfUrl = file.WebUrl,
             Entries = input.Assembled.Entries.Select(e => new
             {
-                e.Order, e.Title, e.Kind, e.StartPage, e.EndPage, e.Note,
+                e.Order, e.Label, e.Level, e.Title, e.Kind, e.StartPage, e.EndPage, e.Note,
                 bySource[e.Order].SourceUniqueId, bySource[e.Order].SourceItemId
             })
         };
         var manifestsDrive = await graph.GetListDriveIdAsync(plan.SiteId, plan.ManifestsListId, ct);
         var (_, manifestItemId) = await graph.UploadAsync(manifestsDrive, $"{plan.BundleId}/v{version}.json",
             JsonSerializer.SerializeToUtf8Bytes(manifest, ManifestJson), ct);
-        await graph.UpdateListItemFieldsAsync(plan.SiteId, plan.ManifestsListId, manifestItemId, new { BundleId = plan.BundleId, BuildVersion = version }, ct);
+        await SetColumnsAsync(plan.SiteId, webUrl, plan.ManifestsListId, manifestItemId,
+            new Dictionary<string, object> { ["BundleId"] = plan.BundleId, ["BuildVersion"] = version }, ct);
 
         await graph.UpdateListItemFieldsAsync(plan.SiteId, plan.RegistryListId, plan.RegistryItemId,
             new { BundleStatus = "Built", LatestPdfUrl = file.WebUrl }, ct);
         await work.DeletePrefixAsync(input.WorkPrefix, ct);
 
         return new BuildResult(file.WebUrl, version, input.Assembled.PageCount, input.Members.Count,
-            input.Members.Count(m => m.Kind == MemberKind.Placeholder));
+            input.Assembled.Entries.Count(e => e.Kind == MemberKind.Placeholder), input.Assembled.Entries.Count(e => e.Level > 0));
     }
 
-    private async Task<(byte[] Pdf, string Kind, string? Note)> ToPdfAsync(ConvertInput input, CancellationToken ct)
-    {
-        var m = input.Member;
-        if (m.SourceItemId <= 0)
-        {
-            return Placeholder(m, "No source reference stored for this member; re-save the bundle.");
-        }
-        try
-        {
-            var file = await graph.GetListItemDriveItemAsync(input.SiteId, input.DocumentsListId, m.SourceItemId, ct);
-            var ext = Path.GetExtension(file.Name).TrimStart('.').ToLowerInvariant();
-            byte[]? pdf;
-            string kind;
-            switch (ext)
-            {
-                case "pdf":
-                    (pdf, kind) = (await graph.DownloadAsync(file.DriveId, file.ItemId, false, ct), MemberKind.Pdf);
-                    break;
-                case "txt":
-                    var text = System.Text.Encoding.UTF8.GetString((await graph.DownloadAsync(file.DriveId, file.ItemId, false, ct))!);
-                    (pdf, kind) = (TextPdfRenderer.RenderText(file.Name, text), MemberKind.Text);
-                    break;
-                case "eml":
-                    (pdf, kind) = (TextPdfRenderer.RenderEmail(file.Name, (await graph.DownloadAsync(file.DriveId, file.ItemId, false, ct))!), MemberKind.Text);
-                    break;
-                default:
-                    (pdf, kind) = (await graph.DownloadAsync(file.DriveId, file.ItemId, true, ct), MemberKind.Converted);
-                    break;
-            }
-            if (pdf is null)
-            {
-                return Placeholder(m, $"'.{ext}' files can't be converted to PDF.", file.WebUrl);
-            }
-            if (!OpensAsPdf(pdf))
-            {
-                return Placeholder(m, "The file is not a readable PDF (it may be encrypted or damaged).", file.WebUrl);
-            }
-            return (pdf, kind, null);
-        }
-        catch (GraphRequestException ex) when (ex.Status is System.Net.HttpStatusCode.NotFound)
-        {
-            logger.LogWarning("Member {Order} source item {Item} not found", m.Order, m.SourceItemId);
-            return Placeholder(m, "The source document no longer exists.");
-        }
-    }
-
-    private static (byte[] Pdf, string Kind, string? Note) Placeholder(PlannedMember m, string reason, string? link = null)
-        => (TextPdfRenderer.RenderPlaceholder(m.Title, reason, link), MemberKind.Placeholder, reason);
-
-    private static bool OpensAsPdf(byte[] pdf)
+    /// <summary>
+    /// Sets columns on the current version without adding one (SharePoint REST). If the Function lacks the
+    /// SharePoint Sites.Selected role, falls back to Graph, which adds a second version per build.
+    /// </summary>
+    private async Task SetColumnsAsync(string siteId, Uri webUrl, string listId, int itemId, IReadOnlyDictionary<string, object> values, CancellationToken ct)
     {
         try
         {
-            using var doc = PdfDocument.Open(pdf);
-            return doc.NumberOfPages > 0;
+            await sharePoint.UpdateFieldsWithoutVersionAsync(webUrl, listId, itemId,
+                values.ToDictionary(v => v.Key, v => Convert.ToString(v.Value, System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty), ct);
         }
-        catch (Exception)
+        catch (HttpRequestException ex) when (ex.StatusCode is System.Net.HttpStatusCode.Unauthorized or System.Net.HttpStatusCode.Forbidden)
         {
-            return false;
+            logger.LogWarning("SharePoint REST denied ({Status}); setting columns through Graph (adds a version). Grant the SharePoint Sites.Selected role.", ex.StatusCode);
+            await graph.UpdateListItemFieldsAsync(siteId, listId, itemId, values, ct);
         }
     }
 

@@ -57,7 +57,7 @@ export const DocumentPreviewPane: React.FC<IDocumentPreviewPaneProps> = ({ webAb
       <iframe
         key={document.uniqueId}
         className={styles.frame}
-        src={getEmbedPreviewUrl(webAbsoluteUrl, document.uniqueId)}
+        src={getEmbedPreviewUrl(webAbsoluteUrl, document.uniqueId, document.fileType)}
         title={format(strings.PreviewFrameTitle, document.name)}
         onLoad={() => setLoadedId(document.uniqueId)}
         data-testid="preview-pane-frame"

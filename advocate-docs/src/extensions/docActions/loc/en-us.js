@@ -1,6 +1,11 @@
 define([], function() {
   return {
     "Preview": "Preview",
+    "Print": "Print",
+    "PrintPreparing": "Preparing {0} document(s) for printing...",
+    "PrintReady": "The print dialog has opened. If it didn't, open the PDF and print it from there.",
+    "PrintOpenPdf": "Open PDF",
+    "PrintAgain": "Print",
     "CreateBundle": "Create bundle",
     "NotAvailableYet": "{0} is not available in this POC build yet.",
 
@@ -97,7 +102,7 @@ define([], function() {
     "BuildStageConverting": "Converting to PDF",
     "BuildStageAssembling": "Assembling the bundle",
     "BuildStagePublishing": "Saving to the Bundles library",
-    "BuildDone": "Bundle version {0} built: {1} pages from {2} documents ({3} could not be included).",
+    "BuildDone": "Bundle version {0} built: {1} pages from {2} documents and {4} email attachments ({3} could not be included).",
     "BuildOpenPdf": "Open bundle PDF",
     "BuildFailed": "The build failed: {0}"
   }

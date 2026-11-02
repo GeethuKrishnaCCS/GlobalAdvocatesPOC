@@ -36,7 +36,7 @@ export const BuildStatusBar: React.FC<IBuildStatusBarProps> = ({ build }) => {
     return (
       <MessageBar intent={r.placeholders ? 'warning' : 'success'} layout="multiline" data-testid="build-status-done">
         <MessageBarBody>
-          {format(strings.BuildDone, r.version, r.pageCount, r.documents, r.placeholders)}{' '}
+          {format(strings.BuildDone, r.version, r.pageCount, r.documents, r.placeholders, r.attachments ?? 0)}{' '}
           <Link href={r.pdfUrl} target="_blank" rel="noopener" data-testid="build-status-open">{strings.BuildOpenPdf}</Link>
         </MessageBarBody>
       </MessageBar>

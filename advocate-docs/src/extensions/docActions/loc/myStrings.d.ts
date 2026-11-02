@@ -1,5 +1,10 @@
 declare interface IDocActionsCommandSetStrings {
   Preview: string;
+  Print: string;
+  PrintPreparing: string;
+  PrintReady: string;
+  PrintOpenPdf: string;
+  PrintAgain: string;
   CreateBundle: string;
   NotAvailableYet: string;
 

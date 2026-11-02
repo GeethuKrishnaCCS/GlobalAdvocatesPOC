@@ -7,6 +7,8 @@ export interface IMatterLists {
   registry: string;
   items: string;
   manifests: string;
+  /** Hidden library for temporary copies the Function converts to PDF (email attachments). */
+  conversion: string;
 }
 
 export interface IBuildProgress {
@@ -21,6 +23,8 @@ export interface IBuildResult {
   pageCount: number;
   documents: number;
   placeholders: number;
+  /** Email attachments added as their own index entries (absent from older Function versions). */
+  attachments?: number;
 }
 
 /** Durable Functions runtime status names. */
@@ -69,6 +73,20 @@ export class BundleApiService {
       throw new Error(`Couldn't read build status (HTTP ${response.status}): ${body.error ?? response.statusText}`);
     }
     return body;
+  }
+
+  /** The documents (any type, email attachments included) as one A4 PDF, ready to print. */
+  public async print(itemIds: number[]): Promise<Blob> {
+    const client: AadHttpClient = await this._getClient();
+    const response: HttpClientResponse = await client.post(`${this._baseUrl}/api/print`, AadHttpClient.configurations.v1, {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webUrl: this._webAbsoluteUrl, documentsList: this._lists.documents, conversionList: this._lists.conversion, itemIds })
+    });
+    if (!response.ok) {
+      const body: { error?: string } = await response.json().catch(() => ({}));
+      throw new Error(`Couldn't prepare the print (HTTP ${response.status}): ${body.error ?? response.statusText}`);
+    }
+    return response.blob();
   }
 
   private async _getClient(): Promise<AadHttpClient> {

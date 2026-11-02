@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Log } from '@microsoft/sp-core-library';
+import { SPHttpClient, type SPHttpClientResponse } from '@microsoft/sp-http';
 import {
   BaseListViewCommandSet,
   type Command,
@@ -19,6 +20,8 @@ import type { ISendRequest } from './models/ISend';
 import { GraphFileService } from './services/GraphFileService';
 import { MailDraftService } from './services/MailDraftService';
 import { SendDialog } from './components/SendDialog';
+import { PrintDialog } from './components/PrintDialog';
+import { getEmbedPreviewUrl, isVisio } from './utils/previewUrl';
 
 /** ClientSideComponentProperties: URL names (not titles) of the matter site libraries and lists. */
 export interface IDocActionsCommandSetProperties {
@@ -29,6 +32,8 @@ export interface IDocActionsCommandSetProperties {
   /** Under /Lists/. */
   bundleItemsList?: string;
   bundleManifestsLibrary?: string;
+  /** Hidden library for temporary copies made by "send previous version as PDF". */
+  conversionLibrary?: string;
   /** AdvocateDocs Function base URL, e.g. https://func-….azurewebsites.net */
   functionBaseUrl?: string;
   /** Application ID URI of the Function's API app registration (api://{clientId}). */
@@ -39,6 +44,7 @@ const LOG_SOURCE: string = 'DocActionsCommandSet';
 
 /** Command ids — must match the keys in DocActionsCommandSet.manifest.json. */
 const enum CommandId {
+  Print = 'PRINT',
   Preview = 'PREVIEW',
   CreateBundle = 'CREATE_BUNDLE',
   OpenBundle = 'OPEN_BUNDLE',
@@ -61,6 +67,9 @@ const DEFAULT_BUNDLES_LIBRARY: string = 'Bundles';
 const DEFAULT_BUNDLE_REGISTRY_LIST: string = 'BundleRegistry';
 const DEFAULT_BUNDLE_ITEMS_LIST: string = 'BundleItems';
 const DEFAULT_BUNDLE_MANIFESTS_LIBRARY: string = 'BundleManifests';
+const DEFAULT_CONVERSION_LIBRARY: string = 'Conversion';
+/** Must match PrintFunctions.MaxItems in the Function. */
+const MAX_PRINT_ITEMS: number = 25;
 
 /** Document actions for the advocate-firm POC, all opened from the library views. */
 export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocActionsCommandSetProperties> {
@@ -75,6 +84,9 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
 
   public onExecute(event: IListViewCommandSetExecuteEventParameters): void {
     switch (event.itemId) {
+      case CommandId.Print:
+        this._openPrint();
+        break;
       case CommandId.Preview:
         this._openPreview();
         break;
@@ -140,7 +152,8 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
       bundles: p.bundlesLibrary ?? DEFAULT_BUNDLES_LIBRARY,
       registry: p.bundleRegistryList ?? DEFAULT_BUNDLE_REGISTRY_LIST,
       items: p.bundleItemsList ?? DEFAULT_BUNDLE_ITEMS_LIST,
-      manifests: p.bundleManifestsLibrary ?? DEFAULT_BUNDLE_MANIFESTS_LIBRARY
+      manifests: p.bundleManifestsLibrary ?? DEFAULT_BUNDLE_MANIFESTS_LIBRARY,
+      conversion: p.conversionLibrary ?? DEFAULT_CONVERSION_LIBRARY
     });
   }
 
@@ -183,6 +196,7 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
     const kind: LibraryKind = this._libraryKind();
     const inMatterLibrary: boolean = kind !== LibraryKind.Other;
 
+    this._setVisible(CommandId.Print, inMatterLibrary && selectedCount >= 1 && selectedCount <= MAX_PRINT_ITEMS);
     this._setVisible(CommandId.Preview, inMatterLibrary && selectedCount >= 1);
     // No selection needed: documents can be added by folder, filter or search inside the builder.
     this._setVisible(CommandId.CreateBundle, kind === LibraryKind.Documents);
@@ -210,7 +224,8 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
     const host: string = new URL(web.absoluteUrl).hostname;
     this.context.msGraphClientFactory.getClient('3')
       .then(graph => {
-        const files: GraphFileService = new GraphFileService(graph, `${host},${site.id.toString()},${web.id.toString()}`, listId);
+        const files: GraphFileService = new GraphFileService(graph, `${host},${site.id.toString()},${web.id.toString()}`, listId,
+          () => this._getListId(`${this._webServerRelativeUrl}/${this.properties.conversionLibrary ?? DEFAULT_CONVERSION_LIBRARY}`));
         this._panels.open(close => React.createElement(SendDialog, {
           files, mail: new MailDraftService(graph), documents, request,
           webOrigin: new URL(web.absoluteUrl).origin,
@@ -219,6 +234,29 @@ export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocAct
         }));
       })
       .catch((error: Error) => Log.error(LOG_SOURCE, error));
+  }
+
+  /** One PDF of the selection for the browser's print dialog; a lone Visio drawing opens in Visio for the web, which prints it. */
+  private _openPrint(): void {
+    const documents: ISelectedDocument[] = toSelectedDocuments(this.context.listView.selectedRows ?? []);
+    if (documents.length === 1 && isVisio(documents[0].fileType)) {
+      window.open(getEmbedPreviewUrl(this._webAbsoluteUrl, documents[0].uniqueId, documents[0].fileType), '_blank', 'noopener');
+      return;
+    }
+    const itemIds: number[] = documents.map(d => d.id);
+    this._panels.open(close => React.createElement(PrintDialog, { api: this._buildService(), itemIds, onClose: close }));
+  }
+
+  /** List id by server-relative URL (hidden lists included). */
+  private async _getListId(serverRelativeUrl: string): Promise<string> {
+    const url: string = `${this._webAbsoluteUrl}/_api/web/GetList(@l)?@l='${encodeURIComponent(serverRelativeUrl.replace(/'/g, "''"))}'&$select=Id`;
+    const response: SPHttpClientResponse = await this.context.spHttpClient.get(url, SPHttpClient.configurations.v1,
+      { headers: { accept: 'application/json;odata=nometadata' } });
+    if (!response.ok) {
+      throw new Error(`Library ${serverRelativeUrl} not found on this site (HTTP ${response.status}).`);
+    }
+    const body: { Id: string } = await response.json();
+    return body.Id;
   }
 }
 

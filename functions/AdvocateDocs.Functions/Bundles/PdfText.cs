@@ -7,6 +7,13 @@ public static class PdfText
 {
     private const char Replacement = '?';
 
+    /// <summary>Typographic punctuation common in email subjects and file names, as plain ASCII (outside Latin-1).</summary>
+    private static readonly Dictionary<char, string> Typographic = new()
+    {
+        ['–'] = "-", ['—'] = "-", ['‘'] = "'", ['’'] = "'", ['“'] = "\"", ['”'] = "\"",
+        ['…'] = "...", ['•'] = "*"
+    };
+
     /// <summary>Keeps printable Latin-1 characters; anything else becomes '?', so built-in fonts can draw it.</summary>
     public static string ToWinAnsi(string? value)
     {
@@ -17,6 +24,11 @@ public static class PdfText
         var sb = new StringBuilder(value.Length);
         foreach (var ch in value)
         {
+            if (Typographic.TryGetValue(ch, out var ascii))
+            {
+                sb.Append(ascii);
+                continue;
+            }
             sb.Append(ch is '\t' ? ' ' : ch >= ' ' && ch <= '~' || ch >= ' ' && ch <= 'ÿ' ? ch : Replacement);
         }
         return sb.ToString();
