@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
-import { cleanBaseName, fileNameProblem, splitFileName } from "../src/shared/services/fileName";
+import { cleanBaseName, fileNameProblem, splitFileName, toBaseName } from "../src/shared/services/fileName";
+import { testIdPart } from "../src/shared/testId";
 import { friendlyAuthError } from "../src/shared/auth/authErrors";
 
 test("cleanBaseName_Should_ReplaceIllegalCharacters_When_NameHasThem", () => {
@@ -31,4 +32,16 @@ test("friendlyAuthError_Should_MapCodesAndKeepCorrelationId_When_Known", () => {
 test("fileNameProblem_Should_RejectSharePointReservedParts_When_Present", () => {
   expect(fileNameProblem("~$Letter", ".docx")).toMatch(/reserved/);
   expect(fileNameProblem("a_vti_b", ".docx")).toMatch(/reserved/);
+});
+
+test("toBaseName_Should_DropTypedExtension_When_UserTypesIt", () => {
+  expect(toBaseName("Letter.docx", ".docx")).toBe("Letter");
+  expect(toBaseName("Letter.DOCX ", ".docx")).toBe("Letter");
+  expect(toBaseName("Letter.v2", ".docx")).toBe("Letter.v2");
+  expect(fileNameProblem(".docx", ".docx")).toBe("Enter a file name.");
+});
+
+test("testIdPart_Should_ProduceKebabCase_When_GivenNames", () => {
+  expect(testIdPart("ADVTest_FolderA")).toBe("advtest-foldera");
+  expect(testIdPart(" Correspondence › Inward ")).toBe("correspondence-inward");
 });

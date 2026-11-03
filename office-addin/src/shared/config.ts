@@ -16,7 +16,19 @@ export enum PaneView {
   SendAsAttachment = "send",
 }
 
-/** Matter sites are found by this site search term (test marker on dev; firm's matter site prefix in prod). */
+/** Matter sites are the sites whose URL alias starts with this (test marker on dev; firm's matter site prefix in prod). */
 export const MATTER_SITE_SEARCH = "ADVTestMatter";
 /** Matter document library, by list URL name (language-independent, unlike the display name). */
 export const MATTER_LIBRARY_NAME = "ADVTestDocuments";
+
+/** Document type choices (values already used in the matter library's DocType column). */
+export const DOCUMENT_TYPES = [
+  "Affidavit",
+  "Contract",
+  "Correspondence",
+  "Evidence",
+  "Order",
+  "Pleading",
+];
+/** AdvDirection column choices. */
+export const DIRECTIONS = ["Inward", "Outward"];

@@ -16,9 +16,16 @@ export function cleanBaseName(baseName: string): string {
     .replace(/^[\s.]+|[\s.]+$/g, "");
 }
 
+/** Base name to save: cleaned, and without a copy of the locked extension the user typed ("Letter.docx"). Pure. */
+export function toBaseName(input: string, extension: string): string {
+  const trimmed = input.trim();
+  const typed = extension && trimmed.toLowerCase().endsWith(extension.toLowerCase());
+  return cleanBaseName(typed ? trimmed.slice(0, -extension.length) : trimmed);
+}
+
 /** Why a base name cannot be saved with this extension, or undefined when it can. Pure. */
 export function fileNameProblem(baseName: string, extension: string): string | undefined {
-  const cleaned = cleanBaseName(baseName);
+  const cleaned = toBaseName(baseName, extension);
   if (!cleaned) return "Enter a file name.";
   if (RESERVED_NAMES.test(cleaned) || RESERVED_PARTS.test(cleaned))
     return `"${cleaned}" is a reserved name. Choose another.`;

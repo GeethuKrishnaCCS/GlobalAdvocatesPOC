@@ -3,6 +3,7 @@ import { Body1, Button, Caption1, MessageBar, MessageBarBody, Spinner, makeStyle
 import { PaneView } from "../../shared/config";
 import { isNaaSupported } from "../../shared/auth/naa";
 import { useSignIn } from "../../shared/hooks/useSignIn";
+import { SaveToMatter } from "./saveToMatter/SaveToMatter";
 
 export interface IAppProps {
   host: Office.HostType;
@@ -18,7 +19,7 @@ const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalM, padding: tokens.spacingHorizontalL },
 });
 
-/** Step 0 spike: proves view routing + NAA sign-in + Graph /me in Word. */
+/** Pane shell: sign-in, then the view the ribbon button asked for. */
 const App: React.FC<IAppProps> = ({ host, view }) => {
   const styles = useStyles();
   const { state, actions, computed } = useSignIn();
@@ -40,6 +41,7 @@ const App: React.FC<IAppProps> = ({ host, view }) => {
           <MessageBarBody>{state.error}</MessageBarBody>
         </MessageBar>
       )}
+      {state.user && view === PaneView.SaveToMatter && <SaveToMatter host={host} />}
       {computed.needsSignIn && (
         <Button appearance="primary" onClick={() => void actions.signIn()} data-testid="app-signin-button">
           Sign in
