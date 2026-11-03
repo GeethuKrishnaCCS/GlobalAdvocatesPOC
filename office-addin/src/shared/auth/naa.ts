@@ -4,7 +4,7 @@ import {
   type IPublicClientApplication,
   type SilentRequest,
 } from "@azure/msal-browser";
-import { GRAPH_SCOPES } from "../config";
+import { GRAPH_SCOPES, SHAREPOINT_SCOPES } from "../config";
 import { openAuthDialog, type IDialogToken } from "./authDialog";
 import { msalConfig } from "./msalConfig";
 
@@ -129,4 +129,27 @@ export async function getGraphToken(allowPopup = false): Promise<string> {
       ? await pca.ssoSilent({ scopes: GRAPH_SCOPES, loginHint })
       : await pca.acquireTokenSilent({ scopes: GRAPH_SCOPES } as SilentRequest);
   return result.accessToken;
+}
+
+/**
+ * SharePoint REST token for the signed-in user, or undefined when the SharePoint scope is not consented (callers then
+ * use Graph). Never prompts: it rides on the sign-in that produced the Graph token.
+ */
+export async function getSharePointToken(): Promise<string | undefined> {
+  const loginHint = await getLoginHint();
+  if (!isNaaSupported()) {
+    const sharePoint = readDialogToken(loginHint)?.sharePoint;
+    return sharePoint && sharePoint.expiresOn - EXPIRY_BUFFER_MS > Date.now()
+      ? sharePoint.accessToken
+      : undefined;
+  }
+  const pca = await getPca();
+  const account =
+    pca.getAllAccounts().find((a) => a.username.toLowerCase() === loginHint?.toLowerCase()) ??
+    pca.getAllAccounts()[0];
+  try {
+    return (await pca.acquireTokenSilent({ scopes: SHAREPOINT_SCOPES, account })).accessToken;
+  } catch {
+    return undefined;
+  }
 }

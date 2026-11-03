@@ -1,8 +1,9 @@
 import type { DriveItem, FieldValueSet } from "@microsoft/microsoft-graph-types";
 import { graphClient } from "./graphClient";
 import { uploadToFolder } from "./driveUpload";
+import { getSharePointToken } from "../auth/naa";
 
-/* global Blob */
+/* global Blob, fetch */
 
 /** Document properties set on the saved file (matter library columns, by internal name). */
 export interface IDocumentProperties {
@@ -66,10 +67,61 @@ export async function uploadFile(
   };
 }
 
+interface IFieldResult {
+  FieldName: string;
+  HasException: boolean;
+  ErrorMessage: string | null;
+}
+
 /**
- * Sets the document properties and returns the resulting version label.
- * shortcut: this PATCH adds a second version per save (Graph cannot set fields in the upload); move to SharePoint
- * ValidateUpdateListItem(bNewDocumentUpdate) if version noise matters to the firm.
+ * Sets the fields on the version the upload just created (bNewDocumentUpdate), so a first save stays 1.0 and every
+ * update is exactly +1. SharePoint REST, because Graph has no way to update fields without adding a version.
+ */
+async function setFieldsWithoutNewVersion(
+  driveId: string,
+  itemId: string,
+  properties: IDocumentProperties,
+  sharePointToken: string
+): Promise<void> {
+  const item = (await graphClient
+    .api(`/drives/${driveId}/items/${itemId}`)
+    .select("sharepointIds")
+    .get()) as DriveItem;
+  const ids = item.sharepointIds!;
+  const response = await fetch(
+    `${ids.siteUrl}/_api/web/lists(guid'${ids.listId}')/items(${ids.listItemId})/ValidateUpdateListItem`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${sharePointToken}`,
+        Accept: "application/json;odata=nometadata",
+        "Content-Type": "application/json;odata=nometadata",
+      },
+      body: JSON.stringify({
+        formValues: Object.entries(toFields(properties)).map(([FieldName, value]) => ({
+          FieldName,
+          FieldValue: value ?? "",
+        })),
+        bNewDocumentUpdate: true,
+      }),
+    }
+  );
+  if (!response.ok)
+    throw new Error(`Setting the document properties failed (HTTP ${response.status}).`);
+  const failed = ((await response.json()) as { value: IFieldResult[] }).value.filter(
+    (f) => f.HasException
+  );
+  if (failed.length) {
+    throw new Error(
+      `Setting ${failed.map((f) => `${f.FieldName}: ${f.ErrorMessage}`).join("; ")} failed.`
+    );
+  }
+}
+
+/**
+ * Sets the document properties and returns the resulting version label. With a SharePoint token the properties land on
+ * the uploaded version (1.0 on first save, +1 per update); without one (SharePoint scope not consented) Graph's PATCH
+ * adds a second version per save.
  */
 export async function applyProperties(
   driveId: string,
@@ -77,7 +129,10 @@ export async function applyProperties(
   properties: IDocumentProperties
 ): Promise<ISavedFile> {
   const fieldsPath = `/drives/${driveId}/items/${file.itemId}/listItem/fields`;
-  await graphClient.api(fieldsPath).patch(toFields(properties));
+  const sharePointToken = await getSharePointToken();
+  if (sharePointToken)
+    await setFieldsWithoutNewVersion(driveId, file.itemId, properties, sharePointToken);
+  else await graphClient.api(fieldsPath).patch(toFields(properties));
   const fields = (await graphClient
     .api(fieldsPath)
     .select("_UIVersionString")

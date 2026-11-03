@@ -1,8 +1,9 @@
 import {
   createStandardPublicClientApplication,
   type AuthenticationResult,
+  type IPublicClientApplication,
 } from "@azure/msal-browser";
-import { GRAPH_SCOPES } from "../config";
+import { GRAPH_SCOPES, SHAREPOINT_SCOPES } from "../config";
 import { msalConfig, REDIRECT_PATH } from "./msalConfig";
 
 /* global Office, window, sessionStorage, URLSearchParams */
@@ -19,11 +20,16 @@ const DIALOG_CLOSED_BY_USER = 12006;
 /** Office dialog error: the browser blocked the window. */
 const DIALOG_BLOCKED = 12011;
 
-/** Token handed from the sign-in dialog to the pane. */
-export interface IDialogToken {
+/** An access token and when it expires (epoch ms). */
+export interface IExpiringToken {
   accessToken: string;
   expiresOn: number;
+}
+
+/** Tokens handed from the sign-in dialog to the pane: Graph, plus SharePoint when that scope is consented. */
+export interface IDialogToken extends IExpiringToken {
   username: string;
+  sharePoint?: IExpiringToken;
 }
 
 type DialogMessage = { type: "token"; token: IDialogToken } | { type: "error"; message: string };
@@ -93,6 +99,24 @@ function send(message: DialogMessage): void {
   });
 }
 
+/** Adds a SharePoint token from the dialog's MSAL cache when the scope is consented; otherwise the pane uses Graph. */
+async function withSharePoint(
+  pca: IPublicClientApplication,
+  token: IDialogToken,
+  result: AuthenticationResult
+): Promise<IDialogToken> {
+  if (!result.account) return token;
+  try {
+    const sp = await pca.acquireTokenSilent({ scopes: SHAREPOINT_SCOPES, account: result.account });
+    return {
+      ...token,
+      sharePoint: { accessToken: sp.accessToken, expiresOn: sp.expiresOn?.getTime() ?? 0 },
+    };
+  } catch {
+    return token;
+  }
+}
+
 function toToken(result: AuthenticationResult): IDialogToken {
   return {
     accessToken: result.accessToken,
@@ -117,7 +141,7 @@ export async function runAuthDialog(): Promise<void> {
 
     const redirected = await pca.handleRedirectPromise();
     if (redirected) {
-      send({ type: "token", token: toToken(redirected) });
+      send({ type: "token", token: await withSharePoint(pca, toToken(redirected), redirected) });
       return;
     }
     if (sessionStorage.getItem(REDIRECTED_KEY) === "1") {
@@ -132,10 +156,8 @@ export async function runAuthDialog(): Promise<void> {
       (loginHint ? undefined : pca.getAllAccounts()[0]);
     if (account) {
       try {
-        send({
-          type: "token",
-          token: toToken(await pca.acquireTokenSilent({ scopes: GRAPH_SCOPES, account })),
-        });
+        const silent = await pca.acquireTokenSilent({ scopes: GRAPH_SCOPES, account });
+        send({ type: "token", token: await withSharePoint(pca, toToken(silent), silent) });
         return;
       } catch {
         // Refresh token expired or consent changed: fall through to the interactive redirect.

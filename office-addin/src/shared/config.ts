@@ -10,6 +10,12 @@ export const GRAPH_SCOPES = [
   "https://graph.microsoft.com/Mail.ReadWrite",
 ];
 
+/**
+ * Delegated SharePoint scope for REST calls Graph cannot do (setting library fields without adding a version).
+ * Optional: without consent for it the add-in falls back to Graph. Tenant-specific, like the ids above.
+ */
+export const SHAREPOINT_SCOPES = ["https://ccsdev01.sharepoint.com/AllSites.Write"];
+
 /** Task pane views, selected by the `view` query parameter of the manifest page URL. */
 export enum PaneView {
   SaveToMatter = "save",
