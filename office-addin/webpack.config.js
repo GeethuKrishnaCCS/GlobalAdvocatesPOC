@@ -6,6 +6,8 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
 
 const urlDev = "https://localhost:3000/";
+/** Office on the web / SharePoint / Microsoft 365 hosts allowed credentialed CORS to the dev server. */
+const M365_ORIGIN = /^https:\/\/([\w-]+\.)*(officeapps\.live\.com|office\.com|office\.net|sharepoint\.com|cloud\.microsoft)$/;
 // Hosting origin for production builds; set by scripts/Deploy-AdvAddinWeb.ps1.
 const urlProd = process.env.ADV_ADDIN_URL_PROD || "https://www.contoso.com/";
 
@@ -96,8 +98,14 @@ module.exports = async (env, options) => {
     },
     devServer: {
       hot: true,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
+      // Explicit, else the cross-origin check 403s the ribbon's no-cors <img> icon loads from officeapps.live.com.
+      allowedHosts: ["localhost"],
+      // Office on the web fetches ribbon icons with credentials, which rejects "*": echo Microsoft 365 origins only.
+      headers: (req) => {
+        const origin = req.headers.origin;
+        return origin && M365_ORIGIN.test(origin)
+          ? { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true", Vary: "Origin" }
+          : { "Access-Control-Allow-Origin": "*" };
       },
       server: {
         type: "https",
