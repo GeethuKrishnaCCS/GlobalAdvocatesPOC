@@ -32,3 +32,14 @@ export const DOCUMENT_TYPES = [
 ];
 /** AdvDirection column choices. */
 export const DIRECTIONS = ["Inward", "Outward"];
+
+/** Matter folder that filed correspondence (sent emails) goes to, relative to the matter library root. */
+export const FILING_FOLDER_PATH = "Correspondence/Matter";
+/**
+ * Draft extended property naming the folder the sent email should be filed to ("driveId|itemId"); Outlook
+ * "File to Matter" reads it to pre-fill matter and folder.
+ */
+export const FILE_TO_FOLDER_PROPERTY_ID =
+  "String {8997e24e-72ed-4959-b04f-1912c4f5bd9d} Name AdvFileToFolder";
+/** Outlook category that tags an email with its matter ("Matter: ADVTestMatter01"). */
+export const MATTER_CATEGORY_PREFIX = "Matter: ";

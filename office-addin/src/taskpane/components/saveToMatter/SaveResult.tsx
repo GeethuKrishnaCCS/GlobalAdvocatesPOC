@@ -3,8 +3,7 @@ import { Body1, Button, Caption1, Link, makeStyles, tokens } from "@fluentui/rea
 import { CheckmarkCircle24Filled } from "@fluentui/react-icons";
 import type { ISaveResult } from "../../../shared/hooks/useSaveToMatter";
 import type { ISavedFile } from "../../../shared/services/saveToMatterService";
-
-/* global Office */
+import { openInBrowser } from "../../../shared/openInBrowser";
 
 const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalM },
@@ -12,13 +11,6 @@ const useStyles = makeStyles({
   icon: { color: tokens.colorPaletteGreenForeground1 },
   file: { display: "flex", flexDirection: "column" },
 });
-
-/** Desktop task panes would open target=_blank inside the add-in's own webview; use the system browser there. */
-function openInBrowser(event: React.MouseEvent, url: string): void {
-  if (!Office.context.ui?.openBrowserWindow) return;
-  event.preventDefault();
-  Office.context.ui.openBrowserWindow(url);
-}
 
 const SavedFile: React.FC<{ file: ISavedFile; testId: string }> = ({ file, testId }) => {
   const styles = useStyles();

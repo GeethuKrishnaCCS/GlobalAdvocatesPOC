@@ -127,3 +127,22 @@ export async function signIn(page: Page, pane: Frame): Promise<void> {
   await dialog.waitForEvent("close", { timeout: 60_000 });
   await expect(user).toBeVisible({ timeout: 30_000 });
 }
+
+/**
+ * Calls Graph from inside the pane with the pane's own (dialog) token: the test checks what the signed-in user
+ * created, with exactly the user's delegated access. Returns the parsed JSON body (undefined for 204).
+ */
+export async function graphFromPane<T>(pane: Frame, method: string, path: string): Promise<T> {
+  return pane.evaluate(
+    async ({ method, path }) => {
+      const token = JSON.parse(localStorage.getItem("adv.dialogToken") ?? "{}").accessToken;
+      const response = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
+        method,
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error(`Graph ${method} ${path}: HTTP ${response.status}`);
+      return response.status === 204 ? undefined : response.json();
+    },
+    { method, path }
+  ) as Promise<T>;
+}

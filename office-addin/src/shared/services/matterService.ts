@@ -110,3 +110,20 @@ export async function listFolders(driveId: string, folderId: string): Promise<IM
     .map((c) => ({ id: c.id!, name: c.name!, webUrl: c.webUrl ?? "" }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
+
+const HTTP_NOT_FOUND = 404;
+
+/** Item id of a folder by path from the library root ("Correspondence/Matter"), or undefined when it does not exist. */
+export async function findFolder(driveId: string, path: string): Promise<string | undefined> {
+  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  try {
+    const item = (await graphClient
+      .api(`/drives/${driveId}/root:/${encoded}`)
+      .select("id,folder")
+      .get()) as DriveItem;
+    return item.folder ? item.id : undefined;
+  } catch (e) {
+    if ((e as { statusCode?: number }).statusCode === HTTP_NOT_FOUND) return undefined;
+    throw e;
+  }
+}

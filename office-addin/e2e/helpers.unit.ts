@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { cleanBaseName, fileNameProblem, splitFileName, toBaseName } from "../src/shared/services/fileName";
 import { testIdPart } from "../src/shared/testId";
+import { invalidRecipient, parseRecipients, taggedSubject } from "../src/shared/services/mailText";
 import { friendlyAuthError } from "../src/shared/auth/authErrors";
 
 test("cleanBaseName_Should_ReplaceIllegalCharacters_When_NameHasThem", () => {
@@ -44,4 +45,13 @@ test("toBaseName_Should_DropTypedExtension_When_UserTypesIt", () => {
 test("testIdPart_Should_ProduceKebabCase_When_GivenNames", () => {
   expect(testIdPart("ADVTest_FolderA")).toBe("advtest-foldera");
   expect(testIdPart(" Correspondence › Inward ")).toBe("correspondence-inward");
+});
+
+test("mailText_Should_ParseValidateAndTag_When_Drafting", () => {
+  expect(parseRecipients(" a@x.com; b@y.org ,, c@z.net ")).toEqual(["a@x.com", "b@y.org", "c@z.net"]);
+  expect(invalidRecipient("a@x.com; not-an-address")).toBe("not-an-address");
+  expect(invalidRecipient("")).toBeUndefined();
+  expect(taggedSubject("Letter", "ADVTestMatter01")).toBe("[ADVTestMatter01] Letter");
+  expect(taggedSubject("[ADVTestMatter01] Letter", "ADVTestMatter01")).toBe("[ADVTestMatter01] Letter");
+  expect(taggedSubject(" Letter ", undefined)).toBe("Letter");
 });

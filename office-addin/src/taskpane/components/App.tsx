@@ -4,6 +4,7 @@ import { PaneView } from "../../shared/config";
 import { isNaaSupported } from "../../shared/auth/naa";
 import { useSignIn } from "../../shared/hooks/useSignIn";
 import { SaveToMatter } from "./saveToMatter/SaveToMatter";
+import { SendAsAttachment } from "./sendAsAttachment/SendAsAttachment";
 
 export interface IAppProps {
   host: Office.HostType;
@@ -42,6 +43,7 @@ const App: React.FC<IAppProps> = ({ host, view }) => {
         </MessageBar>
       )}
       {state.user && view === PaneView.SaveToMatter && <SaveToMatter host={host} />}
+      {state.user && view === PaneView.SendAsAttachment && <SendAsAttachment host={host} />}
       {computed.needsSignIn && (
         <Button appearance="primary" onClick={() => void actions.signIn()} data-testid="app-signin-button">
           Sign in
