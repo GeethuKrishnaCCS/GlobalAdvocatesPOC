@@ -1,4 +1,4 @@
-import { expect, type Frame, type Page, type TestInfo } from "@playwright/test";
+import { expect, test, type Frame, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync, appendFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -90,25 +90,60 @@ export async function findRibbonFrame(page: Page, tabName: string): Promise<Fram
   return found!;
 }
 
-/** Task pane frame served by the dev server, once it has loaded. */
-export async function findPaneFrame(page: Page): Promise<Frame> {
-  let pane: Frame | undefined;
-  await expect
-    .poll(() => (pane = page.frames().find((f) => f.url().startsWith(DEV_SERVER_ORIGIN))) !== undefined, {
-      message: "task pane frame from localhost:3000 never loaded",
-      timeout: 60_000,
-    })
-    .toBe(true);
-  return pane!;
+
+const TAB = "Global Advocate";
+/** How long one tab's pane gets to appear before the next "Global Advocate" tab is tried. */
+const PANE_WAIT_MS = 20_000;
+
+/** Hosting origin of the centrally deployed add-in (e2e/.env or the shell); unset = hosted checks are skipped. */
+export function hostedOrigin(): string | undefined {
+  return process.env.ADV_E2E_HOSTED_ORIGIN || undefined;
 }
 
-/** Opens the doc with the add-in sideloaded, clicks Global Advocate › <button>, returns the pane frame. */
+/**
+ * Clicks Global Advocate › <button> and returns the pane served from `origin`. A user can have the dev sideload and the
+ * centrally deployed add-in at once, with identical ribbon labels, so each "Global Advocate" tab is tried in turn.
+ */
+export async function openPaneFrom(page: Page, buttonName: string, origin: string): Promise<Frame> {
+  const ribbon = await findRibbonFrame(page, TAB);
+  const tabs = ribbon.getByRole("tab", { name: TAB });
+  const count = await tabs.count();
+  const pane = (): Frame | undefined => page.frames().find((f) => f.url().startsWith(origin));
+  for (let i = 0; i < count && !pane(); i++) {
+    await tabs.nth(i).click();
+    await ribbon.getByRole("button", { name: buttonName }).filter({ visible: true }).first().click();
+    await expect
+      .poll(() => !!pane(), { timeout: PANE_WAIT_MS })
+      .toBe(true)
+      .catch(() => undefined); // another add-in's tab (or not loaded yet): try the next one
+  }
+  const seen = [...new Set(page.frames().map((f) => f.url().split("/").slice(0, 3).join("/")))].filter((o) =>
+    /localhost|web.core.windows.net/.test(o)
+  );
+  expect(
+    pane(),
+    `No task pane from ${origin} in ${count} "${TAB}" tab(s); add-in panes seen: ${seen.join(", ") || "none"}. ` +
+      "Hosted: the add-in may not be assigned to this user or not propagated yet (up to 24 h)."
+  ).toBeDefined();
+  return pane()!;
+}
+
+/** Opens the doc with the add-in sideloaded from the dev server, clicks Global Advocate › <button>, returns the pane. */
 export async function openPane(page: Page, docUrl: string, buttonName: string): Promise<Frame> {
   await page.goto(sideloadUrl(docUrl));
-  const ribbon = await findRibbonFrame(page, "Global Advocate");
-  await ribbon.getByRole("tab", { name: "Global Advocate" }).first().click();
-  await ribbon.getByRole("button", { name: buttonName }).first().click();
-  return findPaneFrame(page);
+  return openPaneFrom(page, buttonName, DEV_SERVER_ORIGIN);
+}
+
+/**
+ * Pane for a host: Word from the dev server (URL sideload); Excel and PowerPoint only load the add-in through
+ * Centralized Deployment on the web, so they use the hosted add-in, or are skipped when no hosting origin is set.
+ */
+export async function openPaneFor(page: Page, host: OfficeWebHost, docUrl: string, buttonName: string): Promise<Frame> {
+  if (host === "word") return openPane(page, docUrl, buttonName);
+  const origin = hostedOrigin();
+  test.skip(!origin, `${host} on the web only loads the deployed add-in: set ADV_E2E_HOSTED_ORIGIN`);
+  await page.goto(docUrl);
+  return openPaneFrom(page, buttonName, origin!);
 }
 
 /**

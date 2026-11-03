@@ -90,7 +90,7 @@ const recipientError = (value: string): string | undefined => {
   return bad ? `"${bad}" is not an email address.` : undefined;
 };
 
-/** Send as Attachment: an Outlook draft with the open document attached as Word, PDF or both. */
+/** Send as Attachment: an Outlook draft with the open document attached as is (Word/Excel/PowerPoint), PDF or both. */
 export function useSendAsAttachment(host: Office.HostType): ISendAsAttachment {
   const document = React.useMemo(() => getCurrentDocument(host), [host]);
   const [form, setForm] = React.useState<ISendForm>({

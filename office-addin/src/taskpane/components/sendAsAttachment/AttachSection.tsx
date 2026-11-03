@@ -2,11 +2,14 @@ import * as React from "react";
 import { Caption1, Field, Input, Subtitle2, ToggleButton, makeStyles, tokens } from "@fluentui/react-components";
 import type { AttachFormat, IAttachment, ISendForm } from "../../../shared/hooks/useSendAsAttachment";
 
-const FORMATS: { value: AttachFormat; label: string }[] = [
-  { value: "native", label: "Word" },
-  { value: "pdf", label: "PDF" },
-  { value: "both", label: "Both" },
-];
+/** Name of the open document's own format on the "Attach as" switch. */
+const NATIVE_LABELS: Partial<Record<Office.HostType, string>> = {
+  [Office.HostType.Word]: "Word",
+  [Office.HostType.Excel]: "Excel",
+  [Office.HostType.PowerPoint]: "PowerPoint",
+};
+
+/* global Office */
 
 const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalS },
@@ -15,22 +18,28 @@ const useStyles = makeStyles({
 });
 
 export interface IAttachSectionProps {
+  host: Office.HostType;
   form: ISendForm;
   attachments: IAttachment[];
   disabled: boolean;
   onChange: (patch: Partial<ISendForm>) => void;
 }
 
-/** "Attach as" Word / PDF / Both, and the (renamable, extension-locked) name of each attachment. */
-export const AttachSection: React.FC<IAttachSectionProps> = ({ form, attachments, disabled, onChange }) => {
+/** "Attach as" Word|Excel|PowerPoint / PDF / Both, and the (renamable, extension-locked) name of each attachment. */
+export const AttachSection: React.FC<IAttachSectionProps> = ({ host, form, attachments, disabled, onChange }) => {
   const styles = useStyles();
+  const formats: { value: AttachFormat; label: string }[] = [
+    { value: "native", label: NATIVE_LABELS[host] ?? "Document" },
+    { value: "pdf", label: "PDF" },
+    { value: "both", label: "Both" },
+  ];
   return (
     <div className={styles.root} data-testid="send-attach">
       <Subtitle2 data-testid="send-attach-heading">Send as attachment</Subtitle2>
       <Caption1 data-testid="send-attach-intro">The current version of this document is attached to a new email.</Caption1>
       <Field label="Attach as" data-testid="send-attach-format-field">
         <div className={styles.formats} role="group" aria-label="Attach as" data-testid="send-attach-format">
-          {FORMATS.map((f) => (
+          {formats.map((f) => (
             <ToggleButton
               key={f.value}
               checked={form.format === f.value}

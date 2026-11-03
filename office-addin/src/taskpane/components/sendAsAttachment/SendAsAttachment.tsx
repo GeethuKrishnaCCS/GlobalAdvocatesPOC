@@ -58,6 +58,7 @@ export const SendAsAttachment: React.FC<{ host: Office.HostType }> = ({ host }) 
       ) : (
         <>
           <AttachSection
+            host={host}
             form={state.form}
             attachments={computed.attachments}
             disabled={busy || state.retryPending}
