@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { cleanBaseName, fileNameProblem, splitFileName, toBaseName } from "../src/shared/services/fileName";
 import { testIdPart } from "../src/shared/testId";
+import { isDarkColor } from "../src/shared/hooks/useOfficeTheme";
 import { invalidRecipient, parseRecipients, taggedSubject } from "../src/shared/services/mailText";
 import { friendlyAuthError } from "../src/shared/auth/authErrors";
 
@@ -54,4 +55,10 @@ test("mailText_Should_ParseValidateAndTag_When_Drafting", () => {
   expect(taggedSubject("Letter", "ADVTestMatter01")).toBe("[ADVTestMatter01] Letter");
   expect(taggedSubject("[ADVTestMatter01] Letter", "ADVTestMatter01")).toBe("[ADVTestMatter01] Letter");
   expect(taggedSubject(" Letter ", undefined)).toBe("Letter");
+});
+
+test("isDarkColor_Should_ClassifyOfficeBackgrounds_When_Hex", () => {
+  expect(isDarkColor("#1B1A19")).toBe(true);
+  expect(isDarkColor("#FFFFFF")).toBe(false);
+  expect(isDarkColor("not a colour")).toBeUndefined();
 });

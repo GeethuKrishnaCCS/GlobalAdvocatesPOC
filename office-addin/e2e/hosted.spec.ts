@@ -1,5 +1,5 @@
 import { expect, test, type Frame } from "@playwright/test";
-import { captureConsole, docUrlFor, findRibbonFrame, saveRunScreenshot, signIn } from "./sideload";
+import { captureConsole, docUrlFor, findRibbonFrame, saveRunScreenshot, signIn, type OfficeWebHost } from "./sideload";
 
 /* global process, console */
 
@@ -17,9 +17,10 @@ test.afterEach(async ({ page }, testInfo) => {
   if (testInfo.status !== "skipped") await saveRunScreenshot(page, testInfo);
 });
 
-test("word: centrally deployed add-in opens from hosting and signs in", async ({ page }, testInfo) => {
-  const docUrl = docUrlFor("word");
-  test.skip(!docUrl || !HOSTED_ORIGIN, "set ADV_E2E_HOSTED_ORIGIN and ADV_E2E_DOC_WORD to check the deployed add-in");
+for (const host of ["word", "excel", "powerpoint"] as OfficeWebHost[]) {
+test(`${host}: centrally deployed add-in opens from hosting and signs in`, async ({ page }, testInfo) => {
+  const docUrl = docUrlFor(host);
+  test.skip(!docUrl || !HOSTED_ORIGIN, `set ADV_E2E_HOSTED_ORIGIN and a ${host} test document to check the deployed add-in`);
   test.setTimeout(4 * 60_000);
   captureConsole(page, testInfo);
 
@@ -54,3 +55,4 @@ test("word: centrally deployed add-in opens from hosting and signs in", async ({
   await expect(pane!.getByTestId("app-user")).toContainText("@");
   await expect(pane!.getByTestId("matter-step")).toBeVisible({ timeout: 60_000 });
 });
+}
