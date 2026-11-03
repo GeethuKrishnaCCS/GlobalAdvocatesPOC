@@ -10,6 +10,11 @@ const urlDev = "https://localhost:3000/";
 const M365_ORIGIN = /^https:\/\/([\w-]+\.)*(officeapps\.live\.com|office\.com|office\.net|sharepoint\.com|cloud\.microsoft)$/;
 // Hosting origin for production builds; set by scripts/Deploy-AdvAddinWeb.ps1.
 const urlProd = process.env.ADV_ADDIN_URL_PROD || "https://www.contoso.com/";
+// Dev sideload and the centrally deployed add-in must not share an Id, or Office treats them as one add-in.
+const MANIFEST_ID_DEV = "34ca07a9-c204-475a-a213-694399a38430";
+const MANIFEST_ID_PROD = "852d67be-2456-421f-a280-251aaa88bb63";
+const DISPLAY_NAME_DEV = "Global Advocate (ADVTest dev)";
+const DISPLAY_NAME_PROD = "Global Advocate";
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -82,7 +87,11 @@ module.exports = async (env, options) => {
                 return content;
               } else {
                 // Without trailing slash so AppDomain entries are rewritten too.
-                return content.toString().replaceAll(urlDev.replace(/\/$/, ""), urlProd.replace(/\/$/, ""));
+                return content
+                  .toString()
+                  .replaceAll(urlDev.replace(/\/$/, ""), urlProd.replace(/\/$/, ""))
+                  .replaceAll(MANIFEST_ID_DEV, MANIFEST_ID_PROD)
+                  .replaceAll(DISPLAY_NAME_DEV, DISPLAY_NAME_PROD);
               }
             },
           },
