@@ -1,8 +1,12 @@
 import { expect, test } from "@playwright/test";
-import { captureConsole, docUrlFor, openPane, signIn, type OfficeWebHost } from "./sideload";
+import { captureConsole, docUrlFor, openPane, saveRunScreenshot, signIn, type OfficeWebHost } from "./sideload";
 
 /** Office.HostType value the pane shows in `app-host`. */
 const HOST_LABEL: Record<OfficeWebHost, string> = { word: "Word", excel: "Excel", powerpoint: "PowerPoint" };
+
+test.afterEach(async ({ page }, testInfo) => {
+  if (testInfo.status !== "skipped") await saveRunScreenshot(page, testInfo);
+});
 
 for (const host of Object.keys(HOST_LABEL) as OfficeWebHost[]) {
   test(`${host}: ribbon opens pane and signs in`, async ({ page }, testInfo) => {

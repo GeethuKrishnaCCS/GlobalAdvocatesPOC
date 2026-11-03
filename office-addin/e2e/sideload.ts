@@ -1,5 +1,6 @@
 import { expect, type Frame, type Page, type TestInfo } from "@playwright/test";
 import { readFileSync, appendFileSync } from "node:fs";
+import { join } from "node:path";
 
 /* global process */
 
@@ -28,6 +29,18 @@ export function sideloadUrl(docUrl: string): string {
   if (!id) throw new Error(`No <Id> in ${MANIFEST_FILE}`);
   const port = new URL(DEV_SERVER_ORIGIN).port;
   return `${docUrl}&wdaddindevserverport=${port}&wdaddinmanifestfile=${MANIFEST_FILE}&wdaddinmanifestguid=${id}${process.env.ADV_E2E_NO_TESTMODE ? "" : "&wdaddintest=true"}`;
+}
+
+/**
+ * Full-page screenshot of every run (pass or fail) into ADV_E2E_SCREENSHOT_DIR, kept across runs
+ * (outputDir is wiped each run). No-op when unset.
+ */
+export async function saveRunScreenshot(page: Page, testInfo: TestInfo): Promise<void> {
+  const dir = process.env.ADV_E2E_SCREENSHOT_DIR;
+  if (!dir) return;
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
+  const name = testInfo.title.replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "");
+  await page.screenshot({ path: join(dir, `${stamp}-${name}-${testInfo.status}.png`), fullPage: true });
 }
 
 /** Pipes page + iframe console output and page errors to <test output>/console.log (grep it; never dump DOM). */
