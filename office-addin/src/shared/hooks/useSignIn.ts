@@ -58,7 +58,8 @@ export function useSignIn(): ISignIn {
       await graphClient.api("/sites/root").select("id").get();
       setUser(userFromToken(accessToken));
     } catch (e) {
-      setError((e as Error).message);
+      // Silent failure is normal (e.g. Office on the web dev sideload): show just the Sign in button.
+      if (allowPopup) setError((e as Error).message);
     } finally {
       setIsLoading(false);
     }
