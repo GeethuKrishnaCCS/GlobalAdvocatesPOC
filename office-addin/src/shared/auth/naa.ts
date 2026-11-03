@@ -76,7 +76,7 @@ async function tryCachedToken(
 
 /**
  * Graph access token for the signed-in Office user. Cache first, then silent SSO (ssoSilent with the Office login
- * hint, brokered by NAA where available); falls back to an MSAL popup, which must run from a user click.
+ * hint, brokered by NAA where available); with `allowPopup` (from a user click) an MSAL popup replaces the silent step.
  * Pattern from OfficeDev/Office-Add-in-samples Samples/auth/Office-Add-in-SSO-NAA (authConfig.ts).
  */
 export async function getGraphToken(allowPopup = false): Promise<string> {
@@ -84,19 +84,13 @@ export async function getGraphToken(allowPopup = false): Promise<string> {
   const loginHint = await getLoginHint();
   const cached = await tryCachedToken(pca, loginHint);
   if (cached) return cached;
-  try {
-    const result: AuthenticationResult = loginHint
-      ? await pca.ssoSilent({ scopes: GRAPH_SCOPES, loginHint })
-      : await pca.acquireTokenSilent({ scopes: GRAPH_SCOPES } as SilentRequest);
-    return result.accessToken;
-  } catch (silentError) {
-    if (!allowPopup) {
-      throw silentError;
-    }
-    const result: AuthenticationResult = await pca.acquireTokenPopup({
-      scopes: GRAPH_SCOPES,
-      loginHint,
-    });
-    return result.accessToken;
+  if (allowPopup) {
+    // Popup straight away: retrying silent SSO first (it already failed on load) outlasts the click's user activation,
+    // so the browser blocks the popup (popup_window_error).
+    return (await pca.acquireTokenPopup({ scopes: GRAPH_SCOPES, loginHint })).accessToken;
   }
+  const result: AuthenticationResult = loginHint
+    ? await pca.ssoSilent({ scopes: GRAPH_SCOPES, loginHint })
+    : await pca.acquireTokenSilent({ scopes: GRAPH_SCOPES } as SilentRequest);
+  return result.accessToken;
 }

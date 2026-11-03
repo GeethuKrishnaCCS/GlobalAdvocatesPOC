@@ -25,6 +25,8 @@ export default defineConfig({
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     launchOptions: {
+      // Keep the popup blocker on, like a user's browser: sign-in popups must open within the click's user activation.
+      ignoreDefaultArgs: ["--disable-popup-blocking"],
       // Office on the web loads the pane from https://localhost:3000; Local Network Access prompts would block icons/pane.
       args: ["--disable-features=LocalNetworkAccessChecks,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights"],
     },
