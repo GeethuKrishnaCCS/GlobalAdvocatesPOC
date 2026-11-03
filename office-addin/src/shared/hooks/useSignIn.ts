@@ -1,8 +1,9 @@
 import * as React from "react";
 import { getGraphToken } from "../auth/naa";
+import { friendlyAuthError } from "../auth/authErrors";
 import { graphClient } from "../services/graphClient";
 
-/* global setTimeout, atob */
+/* global setTimeout, atob, TextDecoder */
 
 /** A silent sign-in that has not settled by then is treated as failed, so the Sign in button shows. */
 const SIGN_IN_TIMEOUT_MS = 20000;
@@ -22,7 +23,9 @@ interface IGraphUser {
 /** Signed-in user from the Graph access token's claims (no extra Graph permission needed). */
 function userFromToken(accessToken: string): IGraphUser {
   const payload = accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
-  const claims = JSON.parse(atob(payload)) as {
+  // atob yields Latin-1 bytes; decode them as UTF-8 so accented names survive.
+  const json = new TextDecoder().decode(Uint8Array.from(atob(payload), (c) => c.charCodeAt(0)));
+  const claims = JSON.parse(json) as {
     name?: string;
     upn?: string;
     preferred_username?: string;
@@ -59,7 +62,7 @@ export function useSignIn(): ISignIn {
       setUser(userFromToken(accessToken));
     } catch (e) {
       // Silent failure is normal (e.g. Office on the web dev sideload): show just the Sign in button.
-      if (allowPopup) setError((e as Error).message);
+      if (allowPopup) setError(friendlyAuthError(e));
     } finally {
       setIsLoading(false);
     }

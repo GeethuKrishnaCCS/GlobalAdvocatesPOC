@@ -54,7 +54,7 @@ export function captureConsole(page: Page, testInfo: TestInfo): void {
     p.on("response", (r) => r.status() >= 400 && write(`[http ${r.status()}] ${tag}${r.url().slice(0, 200)}`));
   };
   attach(page, "");
-  // Sign-in relay and IdP popups are separate pages.
+  // The Office sign-in dialog (and the IdP pages it visits) is a separate page.
   page.context().on("page", (p) => {
     write(`[popup] opened ${p.url().slice(0, 120)}`);
     attach(p, "POPUP ");
@@ -70,7 +70,7 @@ async function acceptDeveloperMode(frame: Frame): Promise<void> {
 }
 
 /** First frame (any depth) where the ribbon tab is visible; Office on the web hosts the ribbon in a nested frame. */
-async function findRibbonFrame(page: Page, tabName: string): Promise<Frame> {
+export async function findRibbonFrame(page: Page, tabName: string): Promise<Frame> {
   let found: Frame | undefined;
   await expect
     .poll(
@@ -113,7 +113,7 @@ export async function openPane(page: Page, docUrl: string, buttonName: string): 
 
 /**
  * Signs the pane in. NAA works silently where Office provides its bridge; the web dev sideload gets none, so the pane
- * falls back to the MSAL popup relay: Sign in → relay page (Continue) → IdP popup, which completes from the saved session.
+ * opens the Office sign-in dialog, which completes from the saved session and closes itself.
  */
 export async function signIn(page: Page, pane: Frame): Promise<void> {
   const user = pane.getByTestId("app-user");
@@ -121,15 +121,9 @@ export async function signIn(page: Page, pane: Frame): Promise<void> {
   await expect(user.or(button)).toBeVisible({ timeout: 60_000 });
   if (await user.isVisible()) return;
 
-  // shortcut: one retry, because the MSAL relay closes right after posting and the pane sometimes reports
-  // user_cancelled (~1 in 3 runs); upgrade if it shows up outside dev sideload or MSAL fixes the race.
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const relayPromise = page.context().waitForEvent("page");
-    await button.click();
-    const relay = await relayPromise;
-    await relay.getByTestId("auth-relay-continue").click();
-    await relay.waitForEvent("close", { timeout: 60_000 });
-    await expect(user.or(button)).toBeVisible({ timeout: 30_000 });
-    if (await user.isVisible()) return;
-  }
+  const dialogPromise = page.context().waitForEvent("page");
+  await button.click();
+  const dialog = await dialogPromise;
+  await dialog.waitForEvent("close", { timeout: 60_000 });
+  await expect(user).toBeVisible({ timeout: 30_000 });
 }
