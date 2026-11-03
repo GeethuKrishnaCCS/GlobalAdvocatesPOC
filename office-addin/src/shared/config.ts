@@ -15,3 +15,8 @@ export enum PaneView {
   SaveToMatter = "save",
   SendAsAttachment = "send",
 }
+
+/** Matter sites are found by this site search term (test marker on dev; firm's matter site prefix in prod). */
+export const MATTER_SITE_SEARCH = "ADVTestMatter";
+/** Matter document library, by list URL name (language-independent, unlike the display name). */
+export const MATTER_LIBRARY_NAME = "ADVTestDocuments";

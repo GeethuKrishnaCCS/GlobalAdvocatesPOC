@@ -29,7 +29,8 @@
     "start:web:powerpoint": "office-addin-debugging start manifest.xml web --app powerpoint",
     "stop": "office-addin-debugging stop manifest.xml",
     "validate": "office-addin-manifest validate manifest.xml",
-    "watch": "webpack --mode development --watch"
+    "watch": "webpack --mode development --watch",
+    "test:unit": "playwright test --project=unit"
   },
   "dependencies": {
     "@azure/msal-browser": "^5.27.0",

@@ -39,6 +39,8 @@ export default defineConfig({
     timeout: 180_000,
   },
   projects: [
+    // Pure helpers (no browser): npm run test:unit
+    { name: "unit", testMatch: /.*\.unit\.ts/ },
     { name: "login", testMatch: /login\.setup\.ts/, use: { headless: false } },
     {
       name: "office-web",
