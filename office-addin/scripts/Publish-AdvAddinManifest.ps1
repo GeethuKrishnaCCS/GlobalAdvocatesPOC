@@ -11,9 +11,12 @@
 .PARAMETER ManifestPath
     Production manifest (dist/manifest.xml from Deploy-AdvAddinWeb.ps1; must not reference localhost).
 .PARAMETER ProductId
-    Existing add-in ProductId (from Get-OrganizationAddIn) to update. Omit for the first registration.
+    Existing add-in ProductId (from Get-OrganizationAddIn) to update. Omit for the first registration. An update
+    needs a higher <Version> in manifest.xml than the registered one, or the upload fails.
 .PARAMETER Members
     Users/groups (UPN or group email) to assign. Omit to assign to everyone.
+.PARAMETER AssignOnly
+    With -ProductId: only add the -Members assignments; the manifest is not re-uploaded (no version bump needed).
 .PARAMETER Execute
     Register/update. Without it the script only shows the plan.
 .EXAMPLE
@@ -31,6 +34,7 @@ param(
     [string]$ManifestPath = (Join-Path (Split-Path $PSScriptRoot -Parent) 'dist/manifest.xml'),
     [ValidatePattern('^[0-9a-fA-F-]{36}$')][string]$ProductId,
     [string[]]$Members,
+    [switch]$AssignOnly,
     [switch]$Execute
 )
 $ErrorActionPreference = 'Stop'
@@ -40,7 +44,8 @@ if (-not (Test-Path $ManifestPath)) { throw "No manifest at $ManifestPath - run 
 [xml]$xml = Get-Content $ManifestPath -Raw
 if ($xml.OuterXml -match 'localhost') { throw "$ManifestPath references localhost - use the production build from Deploy-AdvAddinWeb.ps1." }
 
-$operation = if ($ProductId) { "Update ProductId $ProductId" } else { 'Register new add-in' }
+if ($AssignOnly -and -not $ProductId) { throw '-AssignOnly needs -ProductId of the registered add-in.' }
+$operation = if ($AssignOnly) { "Assign only, ProductId $ProductId" } elseif ($ProductId) { "Update ProductId $ProductId" } else { 'Register new add-in' }
 $assignment = if ($Members) { $Members -join ', ' } else { 'everyone' }
 Write-Information "$operation from $ManifestPath (Id $($xml.OfficeApp.Id), version $($xml.OfficeApp.Version), hosts $($xml.OfficeApp.Hosts.Host.Name -join ', '))" -InformationAction Continue
 Write-Information "Assign to: $assignment" -InformationAction Continue
@@ -49,7 +54,11 @@ if (-not $Execute) { Write-Warning 'Plan only - nothing registered. Re-run with 
 try {
     Import-Module O365CentralizedAddInDeployment -ErrorAction Stop
     Connect-OrganizationAddInService
-    if ($ProductId) {
+    if ($AssignOnly) {
+        Write-Information 'AssignOnly: manifest not re-uploaded.' -InformationAction Continue
+    }
+    elseif ($ProductId) {
+        # Centralized Deployment rejects an update whose <Version> is not higher than the registered one.
         Set-OrganizationAddIn -ProductId $ProductId -ManifestPath $ManifestPath -Locale $locale
     }
     else {
