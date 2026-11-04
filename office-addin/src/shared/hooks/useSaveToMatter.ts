@@ -18,6 +18,8 @@ import {
   type ISavedFile,
 } from "../services/saveToMatterService";
 import { fileNameProblem, toBaseName } from "../services/fileName";
+import { getSharePointToken } from "../auth/naa";
+import { friendlyAuthError } from "../auth/authErrors";
 
 /* global Office */
 
@@ -189,6 +191,9 @@ export function useSaveToMatter(host: Office.HostType): ISaveToMatter {
       progressRef.current?.key === key ? progressRef.current : { key };
     progressRef.current = progress;
     try {
+      // First, while the Submit click still counts as user activation: the SharePoint token puts the properties on the
+      // uploaded version (one version per save). Missing (e.g. sign-in older than the consent) → sign-in dialog now.
+      const sharePointToken = await getSharePointToken(true);
       progress.document ??= await uploadFile(
         driveId,
         folderId,
@@ -196,7 +201,12 @@ export function useSaveToMatter(host: Office.HostType): ISaveToMatter {
         await readDocument(document, "native")
       );
       if (!progress.document.version)
-        progress.document = await applyProperties(driveId, progress.document, details);
+        progress.document = await applyProperties(
+          driveId,
+          progress.document,
+          details,
+          sharePointToken
+        );
       if (details.pdfCopy) {
         progress.pdf ??= await uploadFile(
           driveId,
@@ -205,13 +215,13 @@ export function useSaveToMatter(host: Office.HostType): ISaveToMatter {
           await readDocument(document, "pdf")
         );
         if (!progress.pdf.version)
-          progress.pdf = await applyProperties(driveId, progress.pdf, details);
+          progress.pdf = await applyProperties(driveId, progress.pdf, details, sharePointToken);
       }
       setResult({ document: progress.document, pdf: details.pdfCopy ? progress.pdf : undefined });
       progressRef.current = undefined;
       setStep("done");
     } catch (e) {
-      const message = (e as Error).message;
+      const message = friendlyAuthError(e);
       // Entered details stay; Submit finishes only what is missing (no second upload of a saved file).
       setError(
         progress.document

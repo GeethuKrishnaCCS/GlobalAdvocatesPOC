@@ -131,17 +131,30 @@ export async function getGraphToken(allowPopup = false): Promise<string> {
   return result.accessToken;
 }
 
+const SHAREPOINT_CONSENT_REQUIRED =
+  "sharepoint_consent_required: Global Advocate has no SharePoint permission for this account.";
+
 /**
- * SharePoint REST token for the signed-in user, or undefined when the SharePoint scope is not consented (callers then
- * use Graph). Never prompts: it rides on the sign-in that produced the Graph token.
+ * SharePoint REST token for the signed-in user (setting document properties without adding a version).
+ * Cached token first; otherwise, from a click (`allowPopup`), the sign-in dialog or a brokered popup gets one, which
+ * also repairs a sign-in made before the SharePoint scope was consented. Throws when the scope is not consented.
+ * Like Graph: nothing slow may run before the dialog opens (user activation).
  */
-export async function getSharePointToken(): Promise<string | undefined> {
+export async function getSharePointToken(allowPopup = false): Promise<string> {
   const loginHint = await getLoginHint();
   if (!isNaaSupported()) {
-    const sharePoint = readDialogToken(loginHint)?.sharePoint;
-    return sharePoint && sharePoint.expiresOn - EXPIRY_BUFFER_MS > Date.now()
-      ? sharePoint.accessToken
-      : undefined;
+    const valid = (t: IDialogToken | undefined): string | undefined =>
+      t?.sharePoint && t.sharePoint.expiresOn - EXPIRY_BUFFER_MS > Date.now()
+        ? t.sharePoint.accessToken
+        : undefined;
+    const cached = valid(readDialogToken(loginHint));
+    if (cached) return cached;
+    if (!allowPopup) throw new Error("interaction_required: sign in to continue.");
+    const token = await openAuthDialog(loginHint);
+    saveDialogToken(token);
+    const fresh = valid(token);
+    if (!fresh) throw new Error(SHAREPOINT_CONSENT_REQUIRED);
+    return fresh;
   }
   const pca = await getPca();
   const account =
@@ -149,7 +162,12 @@ export async function getSharePointToken(): Promise<string | undefined> {
     pca.getAllAccounts()[0];
   try {
     return (await pca.acquireTokenSilent({ scopes: SHAREPOINT_SCOPES, account })).accessToken;
-  } catch {
-    return undefined;
+  } catch (silentError) {
+    if (!allowPopup) throw silentError;
+    try {
+      return (await pca.acquireTokenPopup({ scopes: SHAREPOINT_SCOPES, loginHint })).accessToken;
+    } catch (e) {
+      throw /consent|AADSTS65001/i.test(String(e)) ? new Error(SHAREPOINT_CONSENT_REQUIRED) : e;
+    }
   }
 }

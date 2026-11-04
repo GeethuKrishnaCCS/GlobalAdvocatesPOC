@@ -24,6 +24,8 @@ const CLIENT_MESSAGES: Record<string, string> = {
     "The browser blocked the sign-in window. Allow pop-ups for this site, then try again.",
   timed_out: "Sign-in took too long. Select Sign in to try again.",
   interaction_required: "Sign in to continue.",
+  sharepoint_consent_required:
+    "Global Advocate needs SharePoint permission to set document properties. Ask your administrator to grant consent.",
   consent_required:
     "Global Advocate needs permission to your data. Ask your administrator to grant consent.",
   no_network_connectivity: "No network connection. Check your connection and try again.",

@@ -136,3 +136,40 @@ test(`${host}: save to matter, then save again as a new version with a PDF copy`
   }
 });
 }
+
+// A sign-in made before the SharePoint consent has no SharePoint token: Submit must fetch one (sign-in dialog) and still
+// save a single version, never fall back to two.
+test("word: save with a sign-in that lacks the SharePoint token still lands as 1.0", async ({ page }, testInfo) => {
+  const docUrl = docUrlFor("word");
+  test.skip(!docUrl, "no test document configured for word (e2e/.env)");
+  test.setTimeout(5 * 60_000);
+  captureConsole(page, testInfo);
+
+  const pane = await openPaneFor(page, "word", docUrl!, "Save to Matter");
+  await signIn(page, pane);
+  // Simulate the old sign-in: stored token without its SharePoint part, then a fresh pane load (no in-memory copy).
+  await pane.evaluate(() => {
+    const stored = JSON.parse(localStorage.getItem("adv.dialogToken") ?? "{}");
+    delete stored.sharePoint;
+    localStorage.setItem("adv.dialogToken", JSON.stringify(stored));
+    location.reload();
+  });
+  await expect(pane.getByTestId("app-user")).toBeVisible({ timeout: 60_000 });
+
+  await pane.getByTestId(`matter-step-item-${MATTER_ID}`).click();
+  await pane.getByTestId(`folder-step-item-${FOLDER_ID}`).click();
+  await pane.getByTestId("save-to-matter-next").click();
+  const fileName = `${FILE_BASE}_stale_${Date.now()}.docx`;
+  await pane.getByTestId("details-step-file-name").fill(fileName);
+
+  const dialog = page.context().waitForEvent("page");
+  await pane.getByTestId("save-to-matter-submit").click();
+  await (await dialog).waitForEvent("close", { timeout: 60_000 });
+  try {
+    await expect(pane.getByTestId("save-result-document-link")).toHaveText(fileName, { timeout: SAVE_TIMEOUT });
+    await expect(pane.getByTestId("save-result-document-version")).toHaveText("Version 1.0");
+  } finally {
+    const href = await pane.getByTestId("save-result-document-link").getAttribute("href", { timeout: 1_000 }).catch(() => null);
+    if (href) await deleteByUrl(pane, href).catch(() => undefined);
+  }
+});

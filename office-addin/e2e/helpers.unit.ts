@@ -30,6 +30,7 @@ test("friendlyAuthError_Should_MapCodesAndKeepCorrelationId_When_Known", () => {
     "Global Advocate needs permission to your data. Ask your administrator to grant consent. (Correlation ID: 0c3a4f2e-1111-2222-3333-444455556666)"
   );
   expect(friendlyAuthError(new Error("something odd"))).toBe("something odd");
+  expect(friendlyAuthError(new Error("sharepoint_consent_required: no SharePoint permission"))).toMatch(/SharePoint permission/);
 });
 test("fileNameProblem_Should_RejectSharePointReservedParts_When_Present", () => {
   expect(fileNameProblem("~$Letter", ".docx")).toMatch(/reserved/);
