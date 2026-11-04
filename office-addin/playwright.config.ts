@@ -31,7 +31,8 @@ export default defineConfig({
       args: ["--disable-features=LocalNetworkAccessChecks,BlockInsecurePrivateNetworkRequests,PrivateNetworkAccessSendPreflights"],
     },
   },
-  webServer: {
+  // ADV_E2E_NO_DEV_SERVER=1: production-only runs (hosted add-in), proving nothing depends on localhost.
+  webServer: process.env.ADV_E2E_NO_DEV_SERVER ? undefined : {
     command: "npm run dev-server",
     url: DEV_SERVER_URL,
     ignoreHTTPSErrors: true,
