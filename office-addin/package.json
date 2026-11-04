@@ -30,7 +30,8 @@
     "stop": "office-addin-debugging stop manifest.xml",
     "validate": "office-addin-manifest validate manifest.xml",
     "watch": "webpack --mode development --watch",
-    "test:unit": "playwright test --project=unit"
+    "test:unit": "playwright test --project=unit",
+    "package:dev": "pwsh -NoProfile -Command \"Compress-Archive -Force -Path manifest.json,assets -DestinationPath release/advocate-addin-dev.zip\""
   },
   "dependencies": {
     "@azure/msal-browser": "^5.27.0",

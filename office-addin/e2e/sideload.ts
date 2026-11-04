@@ -1,5 +1,5 @@
 import { expect, test, type Frame, type Page, type TestInfo } from "@playwright/test";
-import { readFileSync, appendFileSync } from "node:fs";
+import { appendFileSync } from "node:fs";
 import { join } from "node:path";
 
 /* global process */
@@ -7,7 +7,6 @@ import { join } from "node:path";
 export type OfficeWebHost = "word" | "excel" | "powerpoint";
 
 const DEV_SERVER_ORIGIN = "https://localhost:3000";
-const MANIFEST_FILE = "manifest.xml";
 const DOC_URL_ENV: Record<OfficeWebHost, string> = {
   word: "ADV_E2E_DOC_WORD",
   excel: "ADV_E2E_DOC_EXCEL",
@@ -17,18 +16,6 @@ const DOC_URL_ENV: Record<OfficeWebHost, string> = {
 /** Test document URL for a host from e2e/.env, or undefined when not configured. */
 export function docUrlFor(host: OfficeWebHost): string | undefined {
   return process.env[DOC_URL_ENV[host]] || undefined;
-}
-
-/**
- * Same URL-param dev sideload office-addin-debugging uses for Office on the web
- * (office-addin-dev-settings generateSideloadUrl): no catalog upload, loads instantly, this session only.
- * `wdaddintest=true` suppresses Office's add-in trust dialogs.
- */
-export function sideloadUrl(docUrl: string): string {
-  const id = /<Id>([^<]+)<\/Id>/.exec(readFileSync(MANIFEST_FILE, "utf8"))?.[1];
-  if (!id) throw new Error(`No <Id> in ${MANIFEST_FILE}`);
-  const port = new URL(DEV_SERVER_ORIGIN).port;
-  return `${docUrl}&wdaddindevserverport=${port}&wdaddinmanifestfile=${MANIFEST_FILE}&wdaddinmanifestguid=${id}${process.env.ADV_E2E_NO_TESTMODE ? "" : "&wdaddintest=true"}`;
 }
 
 /**
@@ -61,14 +48,6 @@ export function captureConsole(page: Page, testInfo: TestInfo): void {
   });
 }
 
-/** Office on the web asks once per browser profile before URL-param sideload works; the modal hides the ribbon. */
-async function acceptDeveloperMode(frame: Frame): Promise<void> {
-  const dialog = frame.getByRole("dialog", { name: "Enable Developer Mode" });
-  if (await dialog.isVisible().catch(() => false)) {
-    await dialog.getByRole("button", { name: "OK" }).click();
-  }
-}
-
 /** First frame (any depth) where the ribbon tab is visible; Office on the web hosts the ribbon in a nested frame. */
 export async function findRibbonFrame(page: Page, tabName: string): Promise<Frame> {
   let found: Frame | undefined;
@@ -76,7 +55,6 @@ export async function findRibbonFrame(page: Page, tabName: string): Promise<Fram
     .poll(
       async () => {
         for (const frame of page.frames()) {
-          await acceptDeveloperMode(frame);
           if (await frame.getByRole("tab", { name: tabName }).first().isVisible().catch(() => false)) {
             found = frame;
             return true;
@@ -91,7 +69,11 @@ export async function findRibbonFrame(page: Page, tabName: string): Promise<Fram
 }
 
 
-const TAB = "Global Advocate";
+/** Ribbon tab of the deployed add-in (users) and of the DEV copy loaded from the dev server (E2E account only:
+ * personal upload of release/advocate-addin-dev.zip, see README). Role-name matching is by substring, so TAB finds both. */
+export const PROD_TAB = "Global Advocate";
+export const DEV_TAB = "Global Advocate DEV";
+const TAB = PROD_TAB;
 /** How long one tab's pane gets to appear before the next "Global Advocate" tab is tried. */
 const PANE_WAIT_MS = 20_000;
 
@@ -128,21 +110,20 @@ export async function openPaneFrom(page: Page, buttonName: string, origin: strin
   return pane()!;
 }
 
-/** Opens the doc with the add-in sideloaded from the dev server, clicks Global Advocate › <button>, returns the pane. */
+/** Opens the doc, clicks the DEV copy's tab › <button>, returns the pane served by the dev server. */
 export async function openPane(page: Page, docUrl: string, buttonName: string): Promise<Frame> {
-  await page.goto(sideloadUrl(docUrl));
+  await page.goto(docUrl);
   return openPaneFrom(page, buttonName, DEV_SERVER_ORIGIN);
 }
 
 /**
- * Pane for a host: Word from the dev server (URL sideload); Excel and PowerPoint only load the add-in through
- * Centralized Deployment on the web, so they use the hosted add-in, or are skipped when no hosting origin is set.
+ * Pane for a host: the DEV copy from the dev server (E2E account), or with ADV_E2E_NO_DEV_SERVER the deployed
+ * add-in from ADV_E2E_HOSTED_ORIGIN (skipped when unset).
  */
 export async function openPaneFor(page: Page, host: OfficeWebHost, docUrl: string, buttonName: string): Promise<Frame> {
-  // Production-only runs (no dev server): Word uses the deployed add-in like Excel/PowerPoint.
-  if (host === "word" && !process.env.ADV_E2E_NO_DEV_SERVER) return openPane(page, docUrl, buttonName);
+  if (!process.env.ADV_E2E_NO_DEV_SERVER) return openPane(page, docUrl, buttonName);
   const origin = hostedOrigin();
-  test.skip(!origin, `${host} on the web only loads the deployed add-in: set ADV_E2E_HOSTED_ORIGIN`);
+  test.skip(!origin, `${host}: production-only run needs ADV_E2E_HOSTED_ORIGIN`);
   await page.goto(docUrl);
   return openPaneFrom(page, buttonName, origin!);
 }

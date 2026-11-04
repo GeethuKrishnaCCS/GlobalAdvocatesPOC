@@ -32,7 +32,7 @@ for (const host of ["word", "excel", "powerpoint"] as OfficeWebHost[]) {
     await page.goto(docUrl!);
     // Users must see one tab: a stale personal upload of the add-in (2026-11-04: "Global Advocate (ADVTest)") duplicated it.
     const ribbon = await findRibbonFrame(page, "Global Advocate");
-    await expect(ribbon.getByRole("tab", { name: "Global Advocate" })).toHaveCount(1);
+    await expect(ribbon.getByRole("tab", { name: "Global Advocate", exact: true })).toHaveCount(1);
     const pane = await openPaneFrom(page, "Save to Matter", origin!);
     await expect(pane.getByTestId("app-title")).toHaveText("Save to Matter");
     console.log(`[hosted] ${await pane.getByTestId("app-host").textContent()}`);

@@ -32,15 +32,18 @@ npm run start   # heft serve, opens serve.json pageUrl
 Dev tenant: `ccsdev01`, site `/sites/ADVTestDocs`, test marker `ADVTest`.
 
 ## Office add-in (`office-addin/`)
-Manifest: `manifest.xml` (add-in only, Word + Excel + PowerPoint). `manifest.json` (unified) is not deployed.
+Manifests:
+- `manifest.xml` (add-in only, Word + Excel + PowerPoint): production. The build gives it the prod Id and name; users get the "Global Advocate" tab through Centralized Deployment.
+- `manifest.json` (unified): **DEV copy** "Global Advocate DEV", loading from https://localhost:3000. It's installed only for the E2E account (dev06) as a personal custom app: `npm run package:dev`, then in Teams on the web go to Store › ⚙ › Upload an app › Upload a custom app › `release/advocate-addin-dev.zip` › Add. Bump `version` to update it. Never upload it for real users (it duplicates the tab).
 
-Dev loop (no catalog upload; add-in is sideloaded per session through the document URL):
+Dev loop (E2E account dev06 sees both tabs: the DEV copy serves the dev server, prod serves hosting). URL-parameter web sideloading does not load the add-in; don't rely on it:
 | Step | Command |
 |---|---|
 | Preflight (dev server, manifest, Entra redirect URIs + consent, session, test docs) | `./scripts/Test-AddinDevReady.ps1` |
 | Static checks | `npm run build`, `npm run validate`, `npm run lint` |
 | E2E in Word/Excel/PowerPoint on the web (Edge, headless) | `npm run e2e` (`e2e:headed` to watch) |
 | One-time / when session expires: sign in as dev06 | `npm run e2e:login` |
+| Production only (dev server off, hosted add-in) | `ADV_E2E_NO_DEV_SERVER=1 ADV_E2E_HOSTED_ORIGIN=https://<hosting> npm run e2e` |
 
 - Test documents: `e2e/.env` (copy `e2e/.env.example`), ADVTest files in `ADVTestMatter01/ADVTestDocuments`.
 - Run output (pane console, screenshots, traces): `e2e/out/`.
