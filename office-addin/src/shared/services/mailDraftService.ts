@@ -1,6 +1,7 @@
 import type { Message } from "@microsoft/microsoft-graph-types";
 import { FILE_TO_FOLDER_PROPERTY_ID } from "../config";
 import { graphClient } from "./graphClient";
+import { composeLink } from "./mailText";
 
 /* global Blob, FileReader, fetch */
 
@@ -9,13 +10,10 @@ const INLINE_ATTACHMENT_LIMIT = 3 * 1024 * 1024;
 /** Upload session slice: under 4 MB per request, multiple of 320 KiB. */
 const UPLOAD_SLICE = 9 * 320 * 1024;
 
-/** What the new Outlook draft contains (attachments are added separately). */
+/** What the new Outlook draft contains (attachments are added separately). Recipients and body are left to the user
+ * in Outlook. */
 export interface IDraftRequest {
   subject: string;
-  to: string[];
-  cc: string[];
-  /** Plain text; Outlook shows it as the message body. */
-  message: string;
   categories: string[];
   /** Folder the sent email should be filed to, as "driveId|itemId"; omitted when not wanted. */
   fileToFolder: string | undefined;
@@ -26,15 +24,9 @@ export interface IDraft {
   webLink: string;
 }
 
-const toRecipients = (addresses: string[]): Message["toRecipients"] =>
-  addresses.map((address) => ({ emailAddress: { address } }));
-
 function toMessage(request: IDraftRequest): Message {
   return {
     subject: request.subject,
-    body: { contentType: "text", content: request.message },
-    toRecipients: toRecipients(request.to),
-    ccRecipients: toRecipients(request.cc),
     categories: request.categories,
     singleValueExtendedProperties: request.fileToFolder
       ? [{ id: FILE_TO_FOLDER_PROPERTY_ID, value: request.fileToFolder }]
@@ -45,7 +37,8 @@ function toMessage(request: IDraftRequest): Message {
 /** Creates a draft in the signed-in user's mailbox (delegated Mail.ReadWrite). Nothing is sent. */
 export async function createDraft(request: IDraftRequest): Promise<IDraft> {
   const created = (await graphClient.api("/me/messages").post(toMessage(request))) as Message;
-  return { id: created.id!, webLink: created.webLink ?? "" };
+  // Compose view, not the read view webLink opens.
+  return { id: created.id!, webLink: composeLink(created.webLink ?? "") };
 }
 
 /** Rewrites an existing draft's fields (used when a retry finishes a draft whose attachments failed). */

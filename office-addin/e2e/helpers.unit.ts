@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { cleanBaseName, fileNameProblem, splitFileName, toBaseName } from "../src/shared/services/fileName";
 import { testIdPart } from "../src/shared/testId";
 import { isDarkColor } from "../src/shared/hooks/useOfficeTheme";
-import { invalidRecipient, parseRecipients, taggedSubject } from "../src/shared/services/mailText";
+import { composeLink, taggedSubject } from "../src/shared/services/mailText";
 import { friendlyAuthError } from "../src/shared/auth/authErrors";
 
 test("cleanBaseName_Should_ReplaceIllegalCharacters_When_NameHasThem", () => {
@@ -49,10 +49,7 @@ test("testIdPart_Should_ProduceKebabCase_When_GivenNames", () => {
   expect(testIdPart(" Correspondence › Inward ")).toBe("correspondence-inward");
 });
 
-test("mailText_Should_ParseValidateAndTag_When_Drafting", () => {
-  expect(parseRecipients(" a@x.com; b@y.org ,, c@z.net ")).toEqual(["a@x.com", "b@y.org", "c@z.net"]);
-  expect(invalidRecipient("a@x.com; not-an-address")).toBe("not-an-address");
-  expect(invalidRecipient("")).toBeUndefined();
+test("taggedSubject_Should_TagOnce_When_MatterGiven", () => {
   expect(taggedSubject("Letter", "ADVTestMatter01")).toBe("[ADVTestMatter01] Letter");
   expect(taggedSubject("[ADVTestMatter01] Letter", "ADVTestMatter01")).toBe("[ADVTestMatter01] Letter");
   expect(taggedSubject(" Letter ", undefined)).toBe("Letter");
@@ -62,4 +59,13 @@ test("isDarkColor_Should_ClassifyOfficeBackgrounds_When_Hex", () => {
   expect(isDarkColor("#1B1A19")).toBe(true);
   expect(isDarkColor("#FFFFFF")).toBe(false);
   expect(isDarkColor("not a colour")).toBeUndefined();
+});
+
+test("composeLink_Should_OpenDraftInCompose_When_WebLinkHasItemId", () => {
+  const webLink = "https://outlook.office365.com/owa/?ItemID=AAMk%2BAB%3D&exvsurl=1&viewmodel=ReadMessageItem";
+  expect(composeLink(webLink)).toBe(
+    "https://outlook.office365.com/mail/deeplink/compose/AAMk%2BAB%3D?ItemID=AAMk%2BAB%3D&exvsurl=1"
+  );
+  expect(composeLink("https://outlook.office.com/mail/")).toBe("https://outlook.office.com/mail/");
+  expect(composeLink("")).toBe("");
 });

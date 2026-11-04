@@ -10,7 +10,8 @@ import {
   type IDraftRequest,
 } from "../services/mailDraftService";
 import { fileNameProblem, toBaseName } from "../services/fileName";
-import { invalidRecipient, parseRecipients, taggedSubject } from "../services/mailText";
+import { taggedSubject } from "../services/mailText";
+import { openWhenReady } from "../openInBrowser";
 
 /* global Office, Blob */
 
@@ -33,15 +34,13 @@ export interface ISendForm {
   pdfName: string;
   tagMatter: boolean;
   fileSentEmail: boolean;
-  to: string;
-  cc: string;
-  subject: string;
-  message: string;
 }
 
 export interface ISendResult {
   draft: IDraft;
   attachmentNames: string[];
+  /** False when the browser blocked the new window; the result screen's link opens it instead. */
+  opened: boolean;
 }
 
 /** Filing target of the selected matter: "driveId|itemId", null when the matter has no such folder. */
@@ -71,8 +70,6 @@ export interface ISendAsAttachment {
     fileLocation: string;
     attachments: IAttachment[];
     subjectToSend: string;
-    toError: string | undefined;
-    ccError: string | undefined;
     canCreate: boolean;
     fileEmail: boolean;
     summary: string;
@@ -85,12 +82,8 @@ interface IDraftProgress {
   attached: Set<string>;
 }
 
-const recipientError = (value: string): string | undefined => {
-  const bad = invalidRecipient(value);
-  return bad ? `"${bad}" is not an email address.` : undefined;
-};
-
-/** Send as Attachment: an Outlook draft with the open document attached as is (Word/Excel/PowerPoint), PDF or both. */
+/** Send as Attachment: an Outlook draft with the open document attached as is (Word/Excel/PowerPoint), PDF or both,
+ * opened straight in Outlook; recipients and message are written there. */
 export function useSendAsAttachment(host: Office.HostType): ISendAsAttachment {
   const document = React.useMemo(() => getCurrentDocument(host), [host]);
   const [form, setForm] = React.useState<ISendForm>({
@@ -99,10 +92,6 @@ export function useSendAsAttachment(host: Office.HostType): ISendAsAttachment {
     pdfName: document.baseName,
     tagMatter: true,
     fileSentEmail: false,
-    to: "",
-    cc: "",
-    subject: document.baseName,
-    message: `Please find attached ${document.baseName}.`,
   });
   const [matters, setMatters] = React.useState<IMatter[] | undefined>(undefined);
   const [matter, setMatter] = React.useState<IMatter | undefined>(undefined);
@@ -182,27 +171,20 @@ export function useSendAsAttachment(host: Office.HostType): ISendAsAttachment {
   }, [document, form.format, form.nativeName, form.pdfName]);
 
   const matterRef = form.tagMatter ? matter?.ref : undefined;
-  const subjectToSend = taggedSubject(form.subject, matterRef);
-  const toError = recipientError(form.to);
-  const ccError = recipientError(form.cc);
+  const subjectToSend = taggedSubject(document.baseName, matterRef);
   const canCreate =
-    !isCreating &&
-    !toError &&
-    !ccError &&
-    attachments.every((a) => !a.problem) &&
-    (!form.tagMatter || !!matter);
+    !isCreating && attachments.every((a) => !a.problem) && (!form.tagMatter || !!matter);
   /** Filing applies only with a tagged matter that has the folder; a ticked box for another matter is ignored. */
   const fileEmail = form.tagMatter && form.fileSentEmail && !!filingTarget;
 
   const create = React.useCallback(async () => {
     if (!canCreate) return;
+    // Before any await: the window must open inside the click.
+    const open = openWhenReady();
     setIsCreating(true);
     setError(undefined);
     const request: IDraftRequest = {
       subject: subjectToSend,
-      to: parseRecipients(form.to),
-      cc: parseRecipients(form.cc),
-      message: form.message,
       categories: matterRef ? [`${MATTER_CATEGORY_PREFIX}${matterRef}`] : [],
       fileToFolder: fileEmail ? filingTarget! : undefined,
     };
@@ -219,32 +201,34 @@ export function useSendAsAttachment(host: Office.HostType): ISendAsAttachment {
         await attachFile(progress.draft.id, file.name, file.body);
         progress.attached.add(file.name);
       }
-      setResult({ draft: progress.draft, attachmentNames: attachments.map((a) => a.fileName) });
+      const opened = open(progress.draft.webLink || undefined);
+      setResult({
+        draft: progress.draft,
+        attachmentNames: attachments.map((a) => a.fileName),
+        opened,
+      });
       progressRef.current = undefined;
       setRetryPending(false);
     } catch (e) {
+      open(undefined);
       const message = (e as Error).message;
       setRetryPending(!!progressRef.current);
       setError(
         progressRef.current
-          ? `The draft was created, but not every attachment was added: ${message} Select Create draft to finish.`
+          ? `The draft was created, but not every attachment was added: ${message} Select Open in Outlook to finish.`
           : message
       );
     } finally {
       setIsCreating(false);
     }
-  }, [attachments, canCreate, document, fileEmail, filingTarget, form, matterRef, subjectToSend]);
+  }, [attachments, canCreate, document, fileEmail, filingTarget, matterRef, subjectToSend]);
 
   const startOver = React.useCallback(() => {
     setResult(undefined);
     setRetryPending(false);
   }, []);
 
-  const recipients = parseRecipients(form.to);
-  const summary = [
-    `${attachments.length} attachment${attachments.length === 1 ? "" : "s"}`,
-    recipients.length ? `to ${recipients.join(", ")}` : "no recipients yet",
-  ].join(" · ");
+  const summary = `${attachments.length} attachment${attachments.length === 1 ? "" : "s"} · ${subjectToSend}`;
 
   return {
     state: {
@@ -266,8 +250,6 @@ export function useSendAsAttachment(host: Office.HostType): ISendAsAttachment {
         : "Not saved yet",
       attachments,
       subjectToSend,
-      toError,
-      ccError,
       canCreate,
       fileEmail,
       summary,

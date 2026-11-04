@@ -139,7 +139,8 @@ export async function openPane(page: Page, docUrl: string, buttonName: string): 
  * Centralized Deployment on the web, so they use the hosted add-in, or are skipped when no hosting origin is set.
  */
 export async function openPaneFor(page: Page, host: OfficeWebHost, docUrl: string, buttonName: string): Promise<Frame> {
-  if (host === "word") return openPane(page, docUrl, buttonName);
+  // Production-only runs (no dev server): Word uses the deployed add-in like Excel/PowerPoint.
+  if (host === "word" && !process.env.ADV_E2E_NO_DEV_SERVER) return openPane(page, docUrl, buttonName);
   const origin = hostedOrigin();
   test.skip(!origin, `${host} on the web only loads the deployed add-in: set ADV_E2E_HOSTED_ORIGIN`);
   await page.goto(docUrl);

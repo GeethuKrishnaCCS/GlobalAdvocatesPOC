@@ -13,7 +13,6 @@ import { Document20Regular } from "@fluentui/react-icons";
 import { useSendAsAttachment } from "../../../shared/hooks/useSendAsAttachment";
 import { AttachSection } from "./AttachSection";
 import { MatterSection } from "./MatterSection";
-import { MessageSection } from "./MessageSection";
 import { SendResult } from "./SendResult";
 
 const useStyles = makeStyles({
@@ -29,7 +28,7 @@ const useStyles = makeStyles({
   },
 });
 
-/** Send as Attachment: an Outlook draft with the open document attached, tagged with its matter. */
+/** Send as Attachment: an Outlook draft with the open document attached, tagged with its matter, opened in Outlook. */
 export const SendAsAttachment: React.FC<{ host: Office.HostType }> = ({ host }) => {
   const styles = useStyles();
   const { state, actions, computed } = useSendAsAttachment(host);
@@ -78,14 +77,6 @@ export const SendAsAttachment: React.FC<{ host: Office.HostType }> = ({ host }) 
             onRetryLoad={() => void actions.loadMatters()}
           />
           {state.isLoading && <Spinner size="tiny" label="Loading…" data-testid="send-loading" />}
-          <MessageSection
-            form={state.form}
-            subjectToSend={computed.subjectToSend}
-            toError={computed.toError}
-            ccError={computed.ccError}
-            disabled={busy}
-            onChange={actions.update}
-          />
           <div className={styles.footer} data-testid="send-footer">
             <Caption1 data-testid="send-summary">{computed.summary}</Caption1>
             <Button
@@ -95,7 +86,7 @@ export const SendAsAttachment: React.FC<{ host: Office.HostType }> = ({ host }) 
               onClick={() => void actions.create()}
               data-testid="send-create"
             >
-              {busy ? "Creating draft…" : "Create draft"}
+              {busy ? "Opening in Outlook…" : "Open in Outlook"}
             </Button>
           </div>
         </>

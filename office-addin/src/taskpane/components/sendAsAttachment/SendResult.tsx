@@ -17,7 +17,7 @@ export interface ISendResultProps {
   onStartOver: () => void;
 }
 
-/** Draft created: open it in Outlook (a real link, so it opens from the click) or start another. */
+/** Draft opened in Outlook (or, if the browser blocked the window, a link to open it) and start another. */
 export const SendResult: React.FC<ISendResultProps> = ({ result, subject, onStartOver }) => {
   const styles = useStyles();
   // The form that had focus is gone; move keyboard focus to the next useful action.
@@ -27,7 +27,9 @@ export const SendResult: React.FC<ISendResultProps> = ({ result, subject, onStar
     <div className={styles.root} data-testid="send-result">
       <div className={styles.header} data-testid="send-result-header">
         <CheckmarkCircle24Filled className={styles.icon} data-testid="send-result-icon" />
-        <Body1 data-testid="send-result-message">Draft created: {subject}</Body1>
+        <Body1 data-testid="send-result-message">
+          {result.opened ? "Opened in Outlook" : "Email ready"}: {subject}
+        </Body1>
       </div>
       <ul className={styles.list} data-testid="send-result-attachments">
         {result.attachmentNames.map((name) => (
@@ -41,7 +43,7 @@ export const SendResult: React.FC<ISendResultProps> = ({ result, subject, onStar
         href={result.draft.webLink}
         target="_blank"
         rel="noreferrer"
-        appearance="primary"
+        appearance={result.opened ? "secondary" : "primary"}
         icon={<Open20Regular data-testid="send-result-open-icon" />}
         onClick={(e) => openInBrowser(e, result.draft.webLink)}
         ref={openRef}
@@ -49,9 +51,11 @@ export const SendResult: React.FC<ISendResultProps> = ({ result, subject, onStar
       >
         Open draft in Outlook
       </Button>
-      <Caption1 data-testid="send-result-note">The draft is also in your Outlook Drafts folder.</Caption1>
+      <Caption1 data-testid="send-result-note">
+        Add recipients and your message in Outlook. The email is also in your Outlook Drafts, in the Outlook app too.
+      </Caption1>
       <Button onClick={onStartOver} data-testid="send-result-start-over">
-        Create another draft
+        Send again
       </Button>
     </div>
   );

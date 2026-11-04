@@ -14,7 +14,6 @@ import {
 const MATTER_REF = "ADVTestMatter01";
 const PDF_NAME = "ADVTest_E2E_Send_PDF";
 const CREATE_TIMEOUT = 120_000;
-const SUBJECT_PREFIX = "ADVTest E2E send";
 /** Word runs from the dev server; Excel and PowerPoint through the deployed add-in (ADV_E2E_HOSTED_ORIGIN). */
 const HOSTS: OfficeWebHost[] = ["word", "excel", "powerpoint"];
 const EXTENSIONS: Record<OfficeWebHost, string> = { word: ".docx", excel: ".xlsx", powerpoint: ".pptx" };
@@ -46,9 +45,20 @@ async function findDraft(pane: Frame, subject: string): Promise<IDraft | undefin
   return result.value[0];
 }
 
+/** Test drafts with this exact (ADVTest document) subject; they move to Deleted Items. */
+async function deleteDrafts(pane: Frame, subject: string): Promise<void> {
+  const filter = encodeURIComponent(`subject eq '${subject.replace(/'/g, "''")}'`);
+  const drafts = await graphFromPane<{ value: { id: string }[] }>(
+    pane,
+    "GET",
+    `/me/mailFolders/drafts/messages?$filter=${filter}&$select=id`
+  ).catch(() => ({ value: [] }));
+  for (const d of drafts.value) await graphFromPane(pane, "DELETE", `/me/messages/${d.id}`);
+}
+
 for (const host of HOSTS) {
   const ext = EXTENSIONS[host];
-test(`${host}: send as attachment creates a tagged Outlook draft with the document + PDF`, async ({ page }, testInfo) => {
+test(`${host}: send as attachment opens a tagged Outlook draft with the document + PDF`, async ({ page }, testInfo) => {
   const docUrl = docUrlFor(host);
   test.skip(!docUrl, `no test document configured for ${host} (e2e/.env)`);
   const NATIVE_NAME = `ADVTest_E2E_Send_${host}`;
@@ -57,59 +67,48 @@ test(`${host}: send as attachment creates a tagged Outlook draft with the docume
 
   const pane = await openPaneFor(page, host, docUrl!, "Send as Attachment");
   await signIn(page, pane);
-  const me = /\(([^)]+@[^)]+)\)/.exec((await pane.getByTestId("app-user").textContent()) ?? "")![1];
 
   // Matter of the open document is pre-selected; its Correspondence › Matter folder enables filing.
   await expect(pane.getByTestId("send-matter-picker")).toContainText(MATTER_REF, { timeout: 60_000 });
   await expect(pane.getByTestId("send-matter-file-email")).toBeEnabled({ timeout: 30_000 });
+  // Subject is the tagged document name; recipients and message are left to Outlook (no fields in the pane).
+  const docBase = ((await pane.getByTestId("send-file-name").textContent()) ?? "").replace(/.[^.]+$/, "");
+  const tagged = `[${MATTER_REF}] ${docBase}`;
+  expect(docBase, "ADVTest document (cleanup deletes drafts by this subject)").toMatch(/^ADVTest/);
+  await expect(pane.locator('[data-testid^="send-message"]')).toHaveCount(0);
+  await deleteDrafts(pane, tagged);
 
   await pane.getByTestId("send-attach-format-both").click();
   await pane.getByTestId("send-attach-name-native").fill(NATIVE_NAME);
   await pane.getByTestId("send-attach-name-pdf").fill(`${PDF_NAME}.pdf`);
   await pane.getByTestId("send-matter-file-email").check();
-
-  await pane.getByTestId("send-message-cc").fill("not-an-address");
-  await expect(pane.getByTestId("send-message-cc-field")).toContainText("is not an email address");
-  await expect(pane.getByTestId("send-create")).toBeDisabled();
-  await pane.getByTestId("send-message-cc").fill("");
-  await pane.getByTestId("send-message-to").fill(me);
-
-  const subject = `${SUBJECT_PREFIX} ${Date.now()}`;
-  await pane.getByTestId("send-message-subject").fill(subject);
-  const tagged = `[${MATTER_REF}] ${subject}`;
-  await expect(pane.getByTestId("send-message-subject-field")).toContainText(`Sent as: ${tagged}`);
-  await expect(pane.getByTestId("send-summary")).toHaveText(`2 attachments · to ${me}`);
+  await expect(pane.getByTestId("send-summary")).toHaveText(`2 attachments · ${tagged}`);
   await page.screenshot({ path: testInfo.outputPath("send-form.png") });
-  await pane.getByTestId("send-create").click();
 
   // From here a draft may exist: whatever fails, the finally removes this run's test draft.
   try {
-    await expect(pane.getByTestId("send-result")).toBeVisible({ timeout: CREATE_TIMEOUT });
+    // The window opens inside the click (popup blocker on) and lands on the draft once it exists.
+    const popup = page.context().waitForEvent("page", { timeout: 30_000 });
+    await pane.getByTestId("send-create").click();
+    const outlook = await popup;
+    await expect.poll(() => outlook.url(), { timeout: CREATE_TIMEOUT }).toMatch(/outlook.(office|office365|cloud.microsoft)/);
+    await expect(pane.getByTestId("send-result-message")).toContainText(`Opened in Outlook: ${tagged}`);
     await expect(pane.getByTestId("send-result-attachment-name")).toHaveText([`${NATIVE_NAME}${ext}`, `${PDF_NAME}.pdf`]);
+    // Compose form of the draft (Send button) with the tagged subject: the user only adds recipients and message.
+    await expect(outlook.getByRole("button", { name: "Send", exact: true }).first()).toBeVisible({ timeout: 90_000 });
+    await expect(outlook.getByRole("textbox", { name: /subject/i }).first()).toHaveValue(tagged);
+    await outlook.screenshot({ path: testInfo.outputPath("outlook.png") });
+    await outlook.close();
 
     const draft = await findDraft(pane, tagged);
     expect(draft, "draft in Drafts").toBeDefined();
     expect(draft!.categories).toEqual([`Matter: ${MATTER_REF}`]);
-    expect(draft!.toRecipients.map((r) => r.emailAddress.address.toLowerCase())).toEqual([me.toLowerCase()]);
+    expect(draft!.toRecipients).toEqual([]);
     expect(draft!.attachments.map((a) => a.name).sort()).toEqual([`${NATIVE_NAME}${ext}`, `${PDF_NAME}.pdf`].sort());
     expect(draft!.attachments.every((a) => a.size > 0)).toBe(true);
-    expect(draft!.singleValueExtendedProperties?.[0]?.value).toMatch(/^b!.+\|.+$/);
-
-    // Opening the draft: a real link, so Outlook on the web opens in a new tab from the click.
-    const popup = page.context().waitForEvent("page", { timeout: 30_000 });
-    await pane.getByTestId("send-result-open").click();
-    const outlook = await popup;
-    await expect.poll(() => outlook.url(), { timeout: 30_000 }).toMatch(/outlook\.(office|cloud\.microsoft)/);
-    await outlook.close();
+    expect(draft!.singleValueExtendedProperties?.[0]?.value).toMatch(/^b!.+|.+$/);
   } finally {
-    // This run's draft, plus any an earlier failed run left behind (ADVTest subject only); they move to Deleted Items.
-    const filter = encodeURIComponent(`startswith(subject,'[${MATTER_REF}] ${SUBJECT_PREFIX}')`);
-    const leftovers = await graphFromPane<{ value: { id: string }[] }>(
-      pane,
-      "GET",
-      `/me/mailFolders/drafts/messages?$filter=${filter}&$select=id`
-    ).catch(() => ({ value: [] }));
-    for (const d of leftovers.value) await graphFromPane(pane, "DELETE", `/me/messages/${d.id}`);
+    await deleteDrafts(pane, tagged);
   }
 });
 }
