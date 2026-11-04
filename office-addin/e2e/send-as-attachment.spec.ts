@@ -91,7 +91,7 @@ test(`${host}: send as attachment opens a tagged Outlook draft with the document
     const popup = page.context().waitForEvent("page", { timeout: 30_000 });
     await pane.getByTestId("send-create").click();
     const outlook = await popup;
-    await expect.poll(() => outlook.url(), { timeout: CREATE_TIMEOUT }).toMatch(/outlook.(office|office365|cloud.microsoft)/);
+    await expect.poll(() => outlook.url(), { timeout: CREATE_TIMEOUT }).toMatch(/^https:\/\/outlook\.cloud\.microsoft\/mail\/deeplink\/compose\//);
     await expect(pane.getByTestId("send-result-message")).toContainText(`Opened in Outlook: ${tagged}`);
     await expect(pane.getByTestId("send-result-attachment-name")).toHaveText([`${NATIVE_NAME}${ext}`, `${PDF_NAME}.pdf`]);
     // Compose form of the draft (Send button) with the tagged subject: the user only adds recipients and message.

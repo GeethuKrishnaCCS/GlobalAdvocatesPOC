@@ -64,7 +64,7 @@ test("isDarkColor_Should_ClassifyOfficeBackgrounds_When_Hex", () => {
 test("composeLink_Should_OpenDraftInCompose_When_WebLinkHasItemId", () => {
   const webLink = "https://outlook.office365.com/owa/?ItemID=AAMk%2BAB%3D&exvsurl=1&viewmodel=ReadMessageItem";
   expect(composeLink(webLink)).toBe(
-    "https://outlook.office365.com/mail/deeplink/compose/AAMk%2BAB%3D?ItemID=AAMk%2BAB%3D&exvsurl=1"
+    "https://outlook.cloud.microsoft/mail/deeplink/compose/AAMk%2BAB%3D?ItemID=AAMk%2BAB%3D&exvsurl=1"
   );
   expect(composeLink("https://outlook.office.com/mail/")).toBe("https://outlook.office.com/mail/");
   expect(composeLink("")).toBe("");

@@ -52,7 +52,8 @@ export const SendResult: React.FC<ISendResultProps> = ({ result, subject, onStar
         Open draft in Outlook
       </Button>
       <Caption1 data-testid="send-result-note">
-        Add recipients and your message in Outlook. The email is also in your Outlook Drafts, in the Outlook app too.
+        Add recipients and your message in Outlook. If Outlook asked you to sign in first, select Open draft in Outlook
+        again. The email is also in your Outlook Drafts, in the Outlook app too.
       </Caption1>
       <Button onClick={onStartOver} data-testid="send-result-start-over">
         Send again
