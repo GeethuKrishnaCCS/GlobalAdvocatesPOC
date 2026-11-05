@@ -36,6 +36,8 @@ for (const host of ["word", "excel", "powerpoint"] as OfficeWebHost[]) {
     const pane = await openPaneFrom(page, "Save to Matter", origin!);
     await expect(pane.getByTestId("app-title")).toHaveText("Save to Matter");
     console.log(`[hosted] ${await pane.getByTestId("app-host").textContent()}`);
+    // Silent sign-in (NAA on desktop, ssoSilent on the web): no Sign in click. Regression guard, 2026-11-05.
+    await expect(pane.getByTestId("app-user"), "signed in without clicking Sign in").toBeVisible({ timeout: 45_000 });
     await signIn(page, pane);
     await expect(pane.getByTestId("app-user")).toContainText("@");
     await expect(pane.getByTestId("matter-step")).toBeVisible({ timeout: 60_000 });

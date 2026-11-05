@@ -56,7 +56,7 @@ async function deleteByUrl(pane: Frame, webUrl: string): Promise<void> {
 async function fieldsOf(pane: Frame, linkTestId: string): Promise<IFields> {
   const webUrl = await pane.getByTestId(linkTestId).getAttribute("href");
   return pane.evaluate(async (url) => {
-    const token = JSON.parse(localStorage.getItem("adv.dialogToken") ?? "{}").accessToken;
+    const token = await (window as unknown as { advAuth: { graphToken: () => Promise<string> } }).advAuth.graphToken();
     const share = "u!" + btoa(url!).replace(/=+$/, "").replace(/\//g, "_").replace(/\+/g, "-");
     const response = await fetch(
       `https://graph.microsoft.com/v1.0/shares/${share}/driveItem/listItem/fields?$select=DocType,AdvDirection,_ExtendedDescription`,
@@ -137,8 +137,8 @@ test(`${host}: save to matter, then save again as a new version with a PDF copy`
 });
 }
 
-// A sign-in made before the SharePoint consent has no SharePoint token: Submit must fetch one (sign-in dialog) and still
-// save a single version, never fall back to two.
+// A sign-in made before the SharePoint consent has no SharePoint token: Submit must still get one (silently, or via the
+// sign-in dialog) and save a single version, never fall back to two.
 test("word: save with a sign-in that lacks the SharePoint token still lands as 1.0", async ({ page }, testInfo) => {
   const docUrl = docUrlFor("word");
   test.skip(!docUrl, "no test document configured for word (e2e/.env)");
@@ -147,10 +147,11 @@ test("word: save with a sign-in that lacks the SharePoint token still lands as 1
 
   const pane = await openPaneFor(page, "word", docUrl!, "Save to Matter");
   await signIn(page, pane);
-  // Simulate the old sign-in: stored token without its SharePoint part, then a fresh pane load (no in-memory copy).
-  await pane.evaluate(() => {
-    const stored = JSON.parse(localStorage.getItem("adv.dialogToken") ?? "{}");
-    delete stored.sharePoint;
+  // Simulate the old dialog sign-in: stored Graph token without a SharePoint part, then a fresh pane load.
+  await pane.evaluate(async () => {
+    const accessToken = await (window as unknown as { advAuth: { graphToken: () => Promise<string> } }).advAuth.graphToken();
+    const claims = JSON.parse(atob(accessToken.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    const stored = { accessToken, expiresOn: claims.exp * 1000, username: claims.upn ?? claims.preferred_username };
     localStorage.setItem("adv.dialogToken", JSON.stringify(stored));
     location.reload();
   });
@@ -162,9 +163,9 @@ test("word: save with a sign-in that lacks the SharePoint token still lands as 1
   const fileName = `${FILE_BASE}_stale_${Date.now()}.docx`;
   await pane.getByTestId("details-step-file-name").fill(fileName);
 
-  const dialog = page.context().waitForEvent("page");
+  // A sign-in dialog may open (if the silent SharePoint token fails); it closes by itself from the saved session.
+  page.context().on("page", (dialog) => void dialog.waitForEvent("close", { timeout: 60_000 }).catch(() => undefined));
   await pane.getByTestId("save-to-matter-submit").click();
-  await (await dialog).waitForEvent("close", { timeout: 60_000 });
   try {
     await expect(pane.getByTestId("save-result-document-link")).toHaveText(fileName, { timeout: SAVE_TIMEOUT });
     await expect(pane.getByTestId("save-result-document-version")).toHaveText("Version 1.0");

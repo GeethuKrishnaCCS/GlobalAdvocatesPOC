@@ -1,5 +1,7 @@
 /** Pure helpers for the Send as Attachment draft (unit-tested without a browser). */
 
+/* global URL */
+
 /** Subject with the matter tag in front ("[ADVTestMatter01] Letter"), never added twice. */
 export function taggedSubject(subject: string, matterRef: string | undefined): string {
   const trimmed = subject.trim();

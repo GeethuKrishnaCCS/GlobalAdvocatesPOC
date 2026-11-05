@@ -152,7 +152,7 @@ export async function signIn(page: Page, pane: Frame): Promise<void> {
 export async function graphFromPane<T>(pane: Frame, method: string, path: string): Promise<T> {
   return pane.evaluate(
     async ({ method, path }) => {
-      const token = JSON.parse(localStorage.getItem("adv.dialogToken") ?? "{}").accessToken;
+      const token = await (window as unknown as { advAuth: { graphToken: () => Promise<string> } }).advAuth.graphToken();
       const response = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
         method,
         headers: { Authorization: `Bearer ${token}` },

@@ -104,9 +104,9 @@ export function clearDialogToken(): void {
 /**
  * Graph access token for the signed-in Office user.
  * - NAA bridge present: MSAL cache → ssoSilent (Office login hint) → with `allowPopup`, a brokered popup.
- * - No bridge (Office on the web dev sideload): the token from the last sign-in dialog until it expires; with
- *   `allowPopup`, the Office sign-in dialog. Silent SSO is skipped there: it cannot succeed in the partitioned pane and
- *   only delayed the Sign in button.
+ * - No bridge (Office on the web, by design: "the browser uses a standard authentication flow"): MSAL cache → the token
+ *   from the last sign-in dialog → ssoSilent (hidden iframe, Office login hint); with `allowPopup`, the Office sign-in
+ *   dialog. ssoSilent needs the redirect page to hand back the response (index.tsx isMsalRedirect).
  * `allowPopup` must come from a user click, and nothing slow may run before the popup/dialog opens (user activation).
  */
 export async function getGraphToken(allowPopup = false): Promise<string> {
@@ -114,10 +114,17 @@ export async function getGraphToken(allowPopup = false): Promise<string> {
     const loginHint = await getLoginHint();
     const stored = readDialogToken(loginHint);
     if (stored) return stored.accessToken;
-    if (!allowPopup) throw new Error("interaction_required: sign in to continue.");
-    const token = await openAuthDialog(loginHint);
-    saveDialogToken(token);
-    return token.accessToken;
+    if (allowPopup) {
+      const token = await openAuthDialog(loginHint);
+      saveDialogToken(token);
+      return token.accessToken;
+    }
+    // Without a bridge the nestable factory returns a standard client, whose tokens live in the pane's own storage.
+    const pca = await getPca();
+    const cached = await tryCachedToken(pca, loginHint);
+    if (cached) return cached;
+    if (!loginHint) throw new Error("interaction_required: sign in to continue.");
+    return (await pca.ssoSilent({ scopes: GRAPH_SCOPES, loginHint })).accessToken;
   }
   const pca = await getPca();
   const loginHint = await getLoginHint();
@@ -149,7 +156,21 @@ export async function getSharePointToken(allowPopup = false): Promise<string> {
         : undefined;
     const cached = valid(readDialogToken(loginHint));
     if (cached) return cached;
-    if (!allowPopup) throw new Error("interaction_required: sign in to continue.");
+    // Silent first: the pane's own MSAL session (from ssoSilent) usually gets a SharePoint token without a dialog.
+    try {
+      const pca = await getPca();
+      const account = pca
+        .getAllAccounts()
+        .find((a) => a.username.toLowerCase() === loginHint?.toLowerCase());
+      if (account)
+        return (await pca.acquireTokenSilent({ scopes: SHAREPOINT_SCOPES, account })).accessToken;
+      if (loginHint)
+        return (await pca.ssoSilent({ scopes: SHAREPOINT_SCOPES, loginHint })).accessToken;
+      throw new Error("interaction_required: sign in to continue.");
+    } catch (silentError) {
+      // The dialog opens after this await, so Office may first show its own "allow window" prompt (12011 fallback).
+      if (!allowPopup) throw silentError;
+    }
     const token = await openAuthDialog(loginHint);
     saveDialogToken(token);
     const fresh = valid(token);

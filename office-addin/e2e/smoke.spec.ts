@@ -18,6 +18,8 @@ for (const host of Object.keys(HOST_LABEL) as OfficeWebHost[]) {
 
     await expect(pane.getByTestId("app-title")).toHaveText("Save to Matter");
     await expect(pane.getByTestId("app-host")).toContainText(HOST_LABEL[host]);
+    // Silent sign-in (NAA on desktop, ssoSilent on the web): no Sign in click. Regression guard, 2026-11-05.
+    await expect(pane.getByTestId("app-user"), "signed in without clicking Sign in").toBeVisible({ timeout: 45_000 });
     await signIn(page, pane);
     await expect(pane.getByTestId("app-user")).toContainText("@");
   });
