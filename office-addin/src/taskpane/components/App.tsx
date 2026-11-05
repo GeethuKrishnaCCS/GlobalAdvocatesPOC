@@ -5,6 +5,8 @@ import { isNaaSupported } from "../../shared/auth/naa";
 import { useSignIn } from "../../shared/hooks/useSignIn";
 import { SaveToMatter } from "./saveToMatter/SaveToMatter";
 import { SendAsAttachment } from "./sendAsAttachment/SendAsAttachment";
+import { FileToMatter } from "./outlook/FileToMatter";
+import { AttachFromMatter } from "./outlook/AttachFromMatter";
 
 export interface IAppProps {
   host: Office.HostType;
@@ -14,6 +16,8 @@ export interface IAppProps {
 const VIEW_TITLES: Record<PaneView, string> = {
   [PaneView.SaveToMatter]: "Save to Matter",
   [PaneView.SendAsAttachment]: "Send as Attachment",
+  [PaneView.FileToMatter]: "File to Matter",
+  [PaneView.AttachFromMatter]: "Attach from Matter",
 };
 
 const useStyles = makeStyles({
@@ -44,6 +48,8 @@ const App: React.FC<IAppProps> = ({ host, view }) => {
       )}
       {state.user && view === PaneView.SaveToMatter && <SaveToMatter host={host} />}
       {state.user && view === PaneView.SendAsAttachment && <SendAsAttachment host={host} />}
+      {state.user && view === PaneView.FileToMatter && <FileToMatter />}
+      {state.user && view === PaneView.AttachFromMatter && <AttachFromMatter />}
       {computed.needsSignIn && (
         <Button appearance="primary" onClick={() => void actions.signIn()} data-testid="app-signin-button">
           Sign in

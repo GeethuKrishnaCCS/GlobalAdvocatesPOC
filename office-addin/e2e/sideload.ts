@@ -141,17 +141,41 @@ export async function signIn(page: Page, pane: Frame): Promise<void> {
  * Calls Graph from inside the pane with the pane's own (dialog) token: the test checks what the signed-in user
  * created, with exactly the user's delegated access. Returns the parsed JSON body (undefined for 204).
  */
-export async function graphFromPane<T>(pane: Frame, method: string, path: string): Promise<T> {
+export async function graphFromPane<T>(pane: Frame, method: string, path: string, body?: unknown): Promise<T> {
   return pane.evaluate(
-    async ({ method, path }) => {
+    async ({ method, path, body }) => {
       const token = await (window as unknown as { advAuth: { graphToken: () => Promise<string> } }).advAuth.graphToken();
       const response = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
         method,
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+        body: body === undefined ? undefined : JSON.stringify(body),
       });
       if (!response.ok) throw new Error(`Graph ${method} ${path}: HTTP ${response.status}`);
       return response.status === 204 ? undefined : response.json();
     },
-    { method, path }
+    { method, path, body }
   ) as Promise<T>;
+}
+
+/** Outlook on the web; the DEV copy (manifest.json, Teams custom app) carries the Outlook commands for the E2E account. */
+export const OUTLOOK_URL = "https://outlook.cloud.microsoft/mail/";
+export const OUTLOOK_DEV_ADDIN = "Global Advocate DEV";
+
+/**
+ * Opens the DEV Outlook add-in from the Apps flyout of the current surface (compose: "Apps", read: "More apps")
+ * and returns its pane (served by the dev server). One button per surface, so the app tile opens the pane directly.
+ */
+export async function openOutlookPane(page: Page, appsButton: "Apps" | "More apps"): Promise<Frame> {
+  const pane = (): Frame | undefined => page.frames().find((f) => f.url().startsWith(DEV_SERVER_ORIGIN));
+  // Outlook toggles the add-in pane: when it still thinks an earlier pane is open, the first click only closes it.
+  for (let attempt = 1; ; attempt++) {
+    await page.getByRole("button", { name: appsButton, exact: true }).last().click({ timeout: 60_000 });
+    await page.getByRole("listitem", { name: OUTLOOK_DEV_ADDIN, exact: true }).first().click({ timeout: 30_000 });
+    const opened = await expect
+      .poll(() => !!pane(), { timeout: PANE_WAIT_MS / 2 })
+      .toBe(true)
+      .then(() => true, () => false);
+    if (opened) return pane()!;
+    if (attempt === 2) throw new Error(`no ${OUTLOOK_DEV_ADDIN} pane (DEV copy without Outlook commands? upload manifest.json v1.0.4+, see README)`);
+  }
 }

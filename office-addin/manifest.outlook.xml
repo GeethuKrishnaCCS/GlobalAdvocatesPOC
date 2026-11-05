@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!-- Outlook add-in (XML MailApp): an XML manifest is TaskPaneApp or MailApp, never both, so Outlook is its own add-in on the same web app. See Tasks/AdvocateDocs-POC/outlook-addin/comparison.md. -->
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0" xsi:type="MailApp">
+  <Id>4e3d806d-ca2c-4ad6-966f-126718db477c</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>ADVTest POC</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="Global Advocate DEV"/>
+  <Description DefaultValue="File emails and attachments to a matter, and attach matter documents to emails."/>
+  <IconUrl DefaultValue="https://localhost:3000/assets/icon-64.png"/>
+  <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-128.png"/>
+  <SupportUrl DefaultValue="https://localhost:3000/taskpane.html"/>
+  <AppDomains>
+    <AppDomain>https://localhost:3000</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Mailbox"/>
+  </Hosts>
+  <Requirements>
+    <Sets>
+      <!-- 1.8: attachment content (read) and add-from-base64 / list attachments (compose). The email itself as EML needs 1.14, checked at runtime. -->
+      <Set Name="Mailbox" MinVersion="1.8"/>
+    </Sets>
+  </Requirements>
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://localhost:3000/taskpane.html?view=file"/>
+        <RequestedHeight>250</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+  <Permissions>ReadWriteItem</Permissions>
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Edit"/>
+  </Rule>
+  <DisableEntityHighlighting>true</DisableEntityHighlighting>
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1" xsi:type="VersionOverridesV1_1">
+      <Requirements>
+        <bt:Sets DefaultMinVersion="1.8">
+          <bt:Set Name="Mailbox"/>
+        </bt:Sets>
+      </Requirements>
+      <Hosts>
+        <Host xsi:type="MailHost">
+          <DesktopFormFactor>
+            <ExtensionPoint xsi:type="MessageReadCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="MatterReadGroup">
+                  <Label resid="Group.Label"/>
+                  <Control xsi:type="Button" id="FileToMatterButton">
+                    <Label resid="FileToMatter.Label"/>
+                    <Supertip>
+                      <Title resid="FileToMatter.Label"/>
+                      <Description resid="FileToMatter.Tooltip"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Icon.16x16"/>
+                      <bt:Image size="32" resid="Icon.32x32"/>
+                      <bt:Image size="80" resid="Icon.80x80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="FileToMatter.Url"/>
+                    </Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+            <ExtensionPoint xsi:type="MessageComposeCommandSurface">
+              <OfficeTab id="TabDefault">
+                <Group id="MatterComposeGroup">
+                  <Label resid="Group.Label"/>
+                  <Control xsi:type="Button" id="AttachFromMatterButton">
+                    <Label resid="AttachFromMatter.Label"/>
+                    <Supertip>
+                      <Title resid="AttachFromMatter.Label"/>
+                      <Description resid="AttachFromMatter.Tooltip"/>
+                    </Supertip>
+                    <Icon>
+                      <bt:Image size="16" resid="Icon.16x16"/>
+                      <bt:Image size="32" resid="Icon.32x32"/>
+                      <bt:Image size="80" resid="Icon.80x80"/>
+                    </Icon>
+                    <Action xsi:type="ShowTaskpane">
+                      <SourceLocation resid="AttachFromMatter.Url"/>
+                    </Action>
+                  </Control>
+                </Group>
+              </OfficeTab>
+            </ExtensionPoint>
+          </DesktopFormFactor>
+        </Host>
+      </Hosts>
+      <Resources>
+        <bt:Images>
+          <bt:Image id="Icon.16x16" DefaultValue="https://localhost:3000/assets/icon-16.png"/>
+          <bt:Image id="Icon.32x32" DefaultValue="https://localhost:3000/assets/icon-32.png"/>
+          <bt:Image id="Icon.80x80" DefaultValue="https://localhost:3000/assets/icon-80.png"/>
+        </bt:Images>
+        <bt:Urls>
+          <bt:Url id="FileToMatter.Url" DefaultValue="https://localhost:3000/taskpane.html?view=file"/>
+          <bt:Url id="AttachFromMatter.Url" DefaultValue="https://localhost:3000/taskpane.html?view=attach"/>
+        </bt:Urls>
+        <bt:ShortStrings>
+          <bt:String id="Group.Label" DefaultValue="Global Advocate DEV"/>
+          <bt:String id="FileToMatter.Label" DefaultValue="File to Matter"/>
+          <bt:String id="AttachFromMatter.Label" DefaultValue="Attach from Matter"/>
+        </bt:ShortStrings>
+        <bt:LongStrings>
+          <bt:String id="FileToMatter.Tooltip" DefaultValue="File this email and its attachments into a matter folder."/>
+          <bt:String id="AttachFromMatter.Tooltip" DefaultValue="Attach documents from a matter to this email."/>
+        </bt:LongStrings>
+      </Resources>
+    </VersionOverrides>
+  </VersionOverrides>
+</OfficeApp>

@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json#",
   "manifestVersion": "1.22",
-  "version": "1.0.2",
+  "version": "1.0.4",
   "id": "01d979fb-0f5f-4a7e-9790-c35426b37ea8",
   "localizationInfo": {
     "defaultLanguageTag": "en-us"
@@ -18,7 +18,7 @@
   },
   "description": {
     "short": "DEV copy for testing: loads from the dev server (https://localhost:3000).",
-    "full": "Developer copy of Global Advocate for the E2E test account. Save Word, Excel and PowerPoint files to a matter and send them as Outlook drafts."
+    "full": "Developer copy of Global Advocate for the E2E test account: Word, Excel and PowerPoint (Save to Matter, Send as Attachment) and Outlook (File to Matter, Attach from Matter)."
   },
   "icons": {
     "outline": "assets/outline.png",
@@ -37,6 +37,10 @@
         {
           "name": "Document.ReadWrite.User",
           "type": "Delegated"
+        },
+        {
+          "name": "MailboxItem.ReadWrite.User",
+          "type": "Delegated"
         }
       ]
     }
@@ -47,7 +51,8 @@
         "scopes": [
           "document",
           "workbook",
-          "presentation"
+          "presentation",
+          "mail"
         ]
       },
       "runtimes": [
@@ -94,6 +99,52 @@
               "id": "ShowSendAsAttachment",
               "type": "openPage",
               "view": "SendAsAttachment"
+            }
+          ]
+        },
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.8"
+              }
+            ]
+          },
+          "id": "FileToMatterRuntime",
+          "type": "general",
+          "code": {
+            "page": "https://localhost:3000/taskpane.html?view=file"
+          },
+          "lifetime": "short",
+          "actions": [
+            {
+              "id": "ShowFileToMatter",
+              "type": "openPage",
+              "view": "FileToMatter"
+            }
+          ]
+        },
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.8"
+              }
+            ]
+          },
+          "id": "AttachFromMatterRuntime",
+          "type": "general",
+          "code": {
+            "page": "https://localhost:3000/taskpane.html?view=attach"
+          },
+          "lifetime": "short",
+          "actions": [
+            {
+              "id": "ShowAttachFromMatter",
+              "type": "openPage",
+              "view": "AttachFromMatter"
             }
           ]
         }
@@ -189,6 +240,146 @@
                         "description": "Create an Outlook draft with this document attached."
                       },
                       "actionId": "ShowSendAsAttachment"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.8"
+              }
+            ],
+            "scopes": [
+              "mail"
+            ],
+            "formFactors": [
+              "desktop"
+            ]
+          },
+          "contexts": [
+            "mailRead"
+          ],
+          "tabs": [
+            {
+              "builtInTabId": "TabDefault",
+              "groups": [
+                {
+                  "id": "MatterReadGroup",
+                  "label": "Global Advocate DEV",
+                  "icons": [
+                    {
+                      "size": 16,
+                      "url": "https://localhost:3000/assets/icon-16.png"
+                    },
+                    {
+                      "size": 32,
+                      "url": "https://localhost:3000/assets/icon-32.png"
+                    },
+                    {
+                      "size": 80,
+                      "url": "https://localhost:3000/assets/icon-80.png"
+                    }
+                  ],
+                  "controls": [
+                    {
+                      "id": "FileToMatterButton",
+                      "type": "button",
+                      "label": "File to Matter",
+                      "icons": [
+                        {
+                          "size": 16,
+                          "url": "https://localhost:3000/assets/icon-16.png"
+                        },
+                        {
+                          "size": 32,
+                          "url": "https://localhost:3000/assets/icon-32.png"
+                        },
+                        {
+                          "size": 80,
+                          "url": "https://localhost:3000/assets/icon-80.png"
+                        }
+                      ],
+                      "supertip": {
+                        "title": "File to Matter",
+                        "description": "File this email and its attachments into a matter folder."
+                      },
+                      "actionId": "ShowFileToMatter"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.8"
+              }
+            ],
+            "scopes": [
+              "mail"
+            ],
+            "formFactors": [
+              "desktop"
+            ]
+          },
+          "contexts": [
+            "mailCompose"
+          ],
+          "tabs": [
+            {
+              "builtInTabId": "TabDefault",
+              "groups": [
+                {
+                  "id": "MatterComposeGroup",
+                  "label": "Global Advocate DEV",
+                  "icons": [
+                    {
+                      "size": 16,
+                      "url": "https://localhost:3000/assets/icon-16.png"
+                    },
+                    {
+                      "size": 32,
+                      "url": "https://localhost:3000/assets/icon-32.png"
+                    },
+                    {
+                      "size": 80,
+                      "url": "https://localhost:3000/assets/icon-80.png"
+                    }
+                  ],
+                  "controls": [
+                    {
+                      "id": "AttachFromMatterButton",
+                      "type": "button",
+                      "label": "Attach from Matter",
+                      "icons": [
+                        {
+                          "size": 16,
+                          "url": "https://localhost:3000/assets/icon-16.png"
+                        },
+                        {
+                          "size": 32,
+                          "url": "https://localhost:3000/assets/icon-32.png"
+                        },
+                        {
+                          "size": 80,
+                          "url": "https://localhost:3000/assets/icon-80.png"
+                        }
+                      ],
+                      "supertip": {
+                        "title": "Attach from Matter",
+                        "description": "Attach documents from a matter to this email."
+                      },
+                      "actionId": "ShowAttachFromMatter"
                     }
                   ]
                 }

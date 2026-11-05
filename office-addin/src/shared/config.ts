@@ -20,6 +20,10 @@ export const SHAREPOINT_SCOPES = ["https://ccsdev01.sharepoint.com/AllSites.Writ
 export enum PaneView {
   SaveToMatter = "save",
   SendAsAttachment = "send",
+  /** Outlook read: file the email + attachments. */
+  FileToMatter = "file",
+  /** Outlook compose: attach matter documents. */
+  AttachFromMatter = "attach",
 }
 
 /** Matter sites are the sites whose URL alias starts with this (test marker on dev; firm's matter site prefix in prod). */

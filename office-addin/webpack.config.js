@@ -15,6 +15,10 @@ const MANIFEST_ID_DEV = "34ca07a9-c204-475a-a213-694399a38430";
 const MANIFEST_ID_PROD = "852d67be-2456-421f-a280-251aaa88bb63";
 const DISPLAY_NAME_DEV = "Global Advocate (ADVTest dev)";
 const DISPLAY_NAME_PROD = "Global Advocate";
+// Outlook (MailApp) is its own add-in, so its own Ids; its DEV copy is sideloaded in Outlook on the web.
+const OUTLOOK_ID_DEV = "4e3d806d-ca2c-4ad6-966f-126718db477c";
+const OUTLOOK_ID_PROD = "ed13c06c-9f74-4af3-91e3-9ea841321380";
+const OUTLOOK_NAME_DEV = "Global Advocate DEV";
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -82,13 +86,14 @@ module.exports = async (env, options) => {
           {
             from: "manifest*.{json,xml}",
             to: "[name]" + "[ext]",
-            transform(content) {
+            transform(content, absoluteFrom) {
               if (dev) {
                 return content;
               } else {
                 // Without trailing slash so AppDomain entries are rewritten too.
-                return content
-                  .toString()
+                const text = content.toString();
+                const outlook = absoluteFrom.endsWith("manifest.outlook.xml");
+                return (outlook ? text.replaceAll(OUTLOOK_ID_DEV, OUTLOOK_ID_PROD).replaceAll(OUTLOOK_NAME_DEV, DISPLAY_NAME_PROD) : text)
                   .replaceAll(urlDev.replace(/\/$/, ""), urlProd.replace(/\/$/, ""))
                   .replaceAll(MANIFEST_ID_DEV, MANIFEST_ID_PROD)
                   .replaceAll(DISPLAY_NAME_DEV, DISPLAY_NAME_PROD);

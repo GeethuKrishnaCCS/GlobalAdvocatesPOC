@@ -1,7 +1,8 @@
-import type { GraphRequest } from "@microsoft/microsoft-graph-client";
+import { ResponseType, type GraphRequest } from "@microsoft/microsoft-graph-client";
 import type { Drive, DriveItem, List, Site } from "@microsoft/microsoft-graph-types";
 import { MATTER_LIBRARY_NAME, MATTER_SITE_SEARCH } from "../config";
 import { graphClient } from "./graphClient";
+import { folderPathSegments } from "./mailFiling";
 
 /* global console */
 
@@ -126,4 +127,103 @@ export async function findFolder(driveId: string, path: string): Promise<string 
     if ((e as { statusCode?: number }).statusCode === HTTP_NOT_FOUND) return undefined;
     throw e;
   }
+}
+
+/** A file in a matter library. `docId` is the SharePoint Document ID (when the site has the feature on). */
+export interface IMatterFile {
+  id: string;
+  name: string;
+  webUrl: string;
+  size: number;
+  docId: string | undefined;
+}
+
+type DriveItemWithDocId = DriveItem & { listItem?: { fields?: { _dlc_DocId?: string } } };
+
+function toFile(item: DriveItemWithDocId): IMatterFile {
+  return {
+    id: item.id!,
+    name: item.name!,
+    webUrl: item.webUrl ?? "",
+    size: item.size ?? 0,
+    docId: item.listItem?.fields?._dlc_DocId || undefined,
+  };
+}
+
+/** Sub-folders and files of a library folder ("root" for the library root), each sorted by name. */
+export async function listFolderContents(
+  driveId: string,
+  folderId: string
+): Promise<{ folders: IMatterFolder[]; files: IMatterFile[] }> {
+  const children = await getAllPages<DriveItemWithDocId>(
+    graphClient
+      .api(`/drives/${driveId}/items/${folderId}/children`)
+      .select("id,name,webUrl,size,folder,file")
+      .expand("listItem($select=id;$expand=fields($select=_dlc_DocId))")
+      .top(PAGE_SIZE),
+    "folder contents"
+  );
+  const byName = (a: { name: string }, b: { name: string }): number => a.name.localeCompare(b.name);
+  return {
+    folders: children
+      .filter((c) => c.folder && !SYSTEM_FOLDERS.has(c.name ?? ""))
+      .map((c) => ({ id: c.id!, name: c.name!, webUrl: c.webUrl ?? "" }))
+      .sort(byName),
+    files: children
+      .filter((c) => c.file)
+      .map(toFile)
+      .sort(byName),
+  };
+}
+
+/** Files anywhere in the library matching `query` (name or content); Doc IDs are not returned by search. */
+export async function searchFiles(driveId: string, query: string): Promise<IMatterFile[]> {
+  const q = query.replace(/'/g, "''");
+  const result = (await graphClient
+    .api(`/drives/${driveId}/root/search(q='${encodeURIComponent(q)}')`)
+    .select("id,name,webUrl,size,file")
+    .top(PAGE_SIZE)
+    .get()) as IGraphCollection<DriveItem>;
+  return result.value.filter((i) => i.file).map(toFile);
+}
+
+/** File content. */
+export async function downloadFile(driveId: string, itemId: string): Promise<ArrayBuffer> {
+  return (await graphClient
+    .api(`/drives/${driveId}/items/${itemId}/content`)
+    .responseType(ResponseType.ARRAYBUFFER)
+    .get()) as ArrayBuffer;
+}
+
+/** The matter (of `matters`) whose site holds this drive, or undefined. */
+export async function findMatterForDrive(
+  driveId: string,
+  matters: IMatter[]
+): Promise<IMatter | undefined> {
+  const root = (await graphClient
+    .api(`/drives/${driveId}/root`)
+    .select("sharepointIds")
+    .get()) as DriveItem;
+  const siteGuid = root.sharepointIds?.siteId?.toLowerCase();
+  // Graph site ids are "<host>,<site guid>,<web guid>".
+  return siteGuid
+    ? matters.find((m) => m.siteId.toLowerCase().split(",")[1] === siteGuid)
+    : undefined;
+}
+
+/** Folders from the library root down to (and including) `folderId`, for the breadcrumb. */
+export async function getFolderPath(driveId: string, folderId: string): Promise<IMatterFolder[]> {
+  const item = (await graphClient
+    .api(`/drives/${driveId}/items/${folderId}`)
+    .select("id,name,webUrl,folder,parentReference")
+    .get()) as DriveItem;
+  if (!item.folder) throw new Error("The filing folder no longer exists.");
+  const names = folderPathSegments(item.parentReference?.path);
+  const path: IMatterFolder[] = [];
+  for (let depth = 1; depth <= names.length; depth++) {
+    const id = await findFolder(driveId, names.slice(0, depth).join("/"));
+    if (!id) throw new Error("The filing folder was moved.");
+    path.push({ id, name: names[depth - 1], webUrl: "" });
+  }
+  return [...path, { id: item.id!, name: item.name!, webUrl: item.webUrl ?? "" }];
 }
