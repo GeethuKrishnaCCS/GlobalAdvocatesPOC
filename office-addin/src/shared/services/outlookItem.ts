@@ -23,7 +23,8 @@ function officeCall<T>(
   );
 }
 
-function readItem(): Office.MessageRead {
+/** The email open now; capture it before async work, a pinned pane can move on to another email meanwhile. */
+export function readItem(): Office.MessageRead {
   return Office.context.mailbox.item as Office.MessageRead;
 }
 
@@ -59,17 +60,17 @@ export function canGetEmail(): boolean {
 }
 
 /** The open email as an .eml file. */
-export async function getEmailFile(): Promise<Blob> {
-  return base64ToBlob(
-    await officeCall<string>((cb) => readItem().getAsFileAsync(cb)),
-    "message/rfc822"
-  );
+export async function getEmailFile(item: Office.MessageRead): Promise<Blob> {
+  return base64ToBlob(await officeCall<string>((cb) => item.getAsFileAsync(cb)), "message/rfc822");
 }
 
 /** Content of one attachment of the open email, as a file. */
-export async function getAttachmentFile(attachment: IFilingAttachment): Promise<Blob> {
+export async function getAttachmentFile(
+  item: Office.MessageRead,
+  attachment: IFilingAttachment
+): Promise<Blob> {
   const content = await officeCall<Office.AttachmentContent>((cb) =>
-    readItem().getAttachmentContentAsync(attachment.id, cb)
+    item.getAttachmentContentAsync(attachment.id, cb)
   );
   switch (content.format) {
     case Office.MailboxEnums.AttachmentContentFormat.Base64:

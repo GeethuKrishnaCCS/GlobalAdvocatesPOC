@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Body1, Link, MessageBar, MessageBarBody, Spinner, makeStyles, tokens } from "@fluentui/react-components";
 import { useFileToMatter } from "../../../shared/hooks/useFileToMatter";
+import { useMailItem } from "../../../shared/hooks/useMailItem";
 import { testIdPart } from "../../../shared/testId";
 import { MatterStep } from "../saveToMatter/MatterStep";
 import { FolderStep } from "../saveToMatter/FolderStep";
@@ -19,8 +20,21 @@ const useStyles = makeStyles({
   list: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalXS },
 });
 
-/** File to Matter (Outlook read): files the open email (.eml) and its attachments into a matter folder. */
+/**
+ * File to Matter (Outlook read). The pane can be pinned: selecting another email starts the wizard over for it
+ * (the key remounts the body, so no state of the previous email survives).
+ */
 export const FileToMatter: React.FC = () => {
+  const { itemKey, hasItem } = useMailItem();
+  return hasItem ? (
+    <FileToMatterBody key={itemKey} />
+  ) : (
+    <Body1 data-testid="file-to-matter-no-item">Select an email to file it to a matter.</Body1>
+  );
+};
+
+/** The wizard for one email. */
+const FileToMatterBody: React.FC = () => {
   const styles = useStyles();
   const { state, actions, computed } = useFileToMatter();
   const { browser } = state;

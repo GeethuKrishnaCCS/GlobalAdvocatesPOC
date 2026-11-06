@@ -27,18 +27,31 @@ export async function saveRunScreenshot(page: Page, testInfo: TestInfo): Promise
   if (!dir) return;
   const stamp = new Date().toISOString().replace(/[-:]/g, "").replace("T", "-").slice(0, 15);
   const name = testInfo.title.replace(/[^\w-]+/g, "-").replace(/^-+|-+$/g, "");
-  await page.screenshot({ path: join(dir, `${stamp}-${name}-${testInfo.status}.png`), fullPage: true });
+  await page.screenshot({
+    path: join(dir, `${stamp}-${name}-${testInfo.status}.png`),
+    fullPage: true,
+  });
 }
 
 /** Pipes page + iframe console output and page errors to <test output>/console.log (grep it; never dump DOM). */
 export function captureConsole(page: Page, testInfo: TestInfo): void {
   const file = testInfo.outputPath("console.log");
-  const write = (line: string): void => appendFileSync(file, `${new Date().toISOString()} ${line}\n`);
+  const write = (line: string): void =>
+    appendFileSync(file, `${new Date().toISOString()} ${line}\n`);
   const attach = (p: Page, tag: string): void => {
-    p.on("console", (m) => write(`[${m.type()}] ${tag}${m.location().url?.startsWith(DEV_SERVER_ORIGIN) ? "PANE " : ""}${m.text()}`));
+    p.on("console", (m) =>
+      write(
+        `[${m.type()}] ${tag}${m.location().url?.startsWith(DEV_SERVER_ORIGIN) ? "PANE " : ""}${m.text()}`
+      )
+    );
     p.on("pageerror", (e) => write(`[pageerror] ${tag}${e.message}`));
-    p.on("requestfailed", (r) => write(`[requestfailed] ${tag}${r.url().slice(0, 200)} ${r.failure()?.errorText}`));
-    p.on("response", (r) => r.status() >= 400 && write(`[http ${r.status()}] ${tag}${r.url().slice(0, 200)}`));
+    p.on("requestfailed", (r) =>
+      write(`[requestfailed] ${tag}${r.url().slice(0, 200)} ${r.failure()?.errorText}`)
+    );
+    p.on(
+      "response",
+      (r) => r.status() >= 400 && write(`[http ${r.status()}] ${tag}${r.url().slice(0, 200)}`)
+    );
   };
   attach(page, "");
   // The Office sign-in dialog (and the IdP pages it visits) is a separate page.
@@ -55,7 +68,13 @@ export async function findRibbonFrame(page: Page, tabName: string): Promise<Fram
     .poll(
       async () => {
         for (const frame of page.frames()) {
-          if (await frame.getByRole("tab", { name: tabName }).first().isVisible().catch(() => false)) {
+          if (
+            await frame
+              .getByRole("tab", { name: tabName })
+              .first()
+              .isVisible()
+              .catch(() => false)
+          ) {
             found = frame;
             return true;
           }
@@ -67,7 +86,6 @@ export async function findRibbonFrame(page: Page, tabName: string): Promise<Fram
     .toBe(true);
   return found!;
 }
-
 
 /** Ribbon tab of the deployed add-in (users) and of the DEV copy loaded from the dev server (E2E account only:
  * personal upload of release/advocate-addin-dev.zip, see README). */
@@ -112,7 +130,12 @@ export async function openPane(page: Page, docUrl: string, buttonName: string): 
  * Pane for a host: the DEV copy from the dev server (E2E account), or with ADV_E2E_NO_DEV_SERVER the deployed
  * add-in from ADV_E2E_HOSTED_ORIGIN (skipped when unset).
  */
-export async function openPaneFor(page: Page, host: OfficeWebHost, docUrl: string, buttonName: string): Promise<Frame> {
+export async function openPaneFor(
+  page: Page,
+  host: OfficeWebHost,
+  docUrl: string,
+  buttonName: string
+): Promise<Frame> {
   if (!process.env.ADV_E2E_NO_DEV_SERVER) return openPane(page, docUrl, buttonName);
   const origin = hostedOrigin();
   test.skip(!origin, `${host}: production-only run needs ADV_E2E_HOSTED_ORIGIN`);
@@ -141,13 +164,23 @@ export async function signIn(page: Page, pane: Frame): Promise<void> {
  * Calls Graph from inside the pane with the pane's own (dialog) token: the test checks what the signed-in user
  * created, with exactly the user's delegated access. Returns the parsed JSON body (undefined for 204).
  */
-export async function graphFromPane<T>(pane: Frame, method: string, path: string, body?: unknown): Promise<T> {
+export async function graphFromPane<T>(
+  pane: Frame,
+  method: string,
+  path: string,
+  body?: unknown
+): Promise<T> {
   return pane.evaluate(
     async ({ method, path, body }) => {
-      const token = await (window as unknown as { advAuth: { graphToken: () => Promise<string> } }).advAuth.graphToken();
+      const token = await (
+        window as unknown as { advAuth: { graphToken: () => Promise<string> } }
+      ).advAuth.graphToken();
       const response = await fetch(`https://graph.microsoft.com/v1.0${path}`, {
         method,
-        headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+        },
         body: body === undefined ? undefined : JSON.stringify(body),
       });
       if (!response.ok) throw new Error(`Graph ${method} ${path}: HTTP ${response.status}`);
@@ -165,17 +198,34 @@ export const OUTLOOK_DEV_ADDIN = "Global Advocate DEV";
  * Opens the DEV Outlook add-in from the Apps flyout of the current surface (compose: "Apps", read: "More apps")
  * and returns its pane (served by the dev server). One button per surface, so the app tile opens the pane directly.
  */
-export async function openOutlookPane(page: Page, appsButton: "Apps" | "More apps"): Promise<Frame> {
-  const pane = (): Frame | undefined => page.frames().find((f) => f.url().startsWith(DEV_SERVER_ORIGIN));
+export async function openOutlookPane(
+  page: Page,
+  appsButton: "Apps" | "More apps"
+): Promise<Frame> {
+  // taskpane.html, not commands.html: in compose Outlook also loads the banner runtime from the dev server.
+  const pane = (): Frame | undefined =>
+    page.frames().find((f) => f.url().startsWith(`${DEV_SERVER_ORIGIN}/taskpane.html`));
   // Outlook toggles the add-in pane: when it still thinks an earlier pane is open, the first click only closes it.
   for (let attempt = 1; ; attempt++) {
-    await page.getByRole("button", { name: appsButton, exact: true }).last().click({ timeout: 60_000 });
-    await page.getByRole("listitem", { name: OUTLOOK_DEV_ADDIN, exact: true }).first().click({ timeout: 30_000 });
+    await page
+      .getByRole("button", { name: appsButton, exact: true })
+      .last()
+      .click({ timeout: 60_000 });
+    await page
+      .getByRole("listitem", { name: OUTLOOK_DEV_ADDIN, exact: true })
+      .first()
+      .click({ timeout: 30_000 });
     const opened = await expect
       .poll(() => !!pane(), { timeout: PANE_WAIT_MS / 2 })
       .toBe(true)
-      .then(() => true, () => false);
+      .then(
+        () => true,
+        () => false
+      );
     if (opened) return pane()!;
-    if (attempt === 2) throw new Error(`no ${OUTLOOK_DEV_ADDIN} pane (DEV copy without Outlook commands? upload manifest.json v1.0.4+, see README)`);
+    if (attempt === 2)
+      throw new Error(
+        `no ${OUTLOOK_DEV_ADDIN} pane (DEV copy without Outlook commands? upload manifest.json v1.0.4+, see README)`
+      );
   }
 }

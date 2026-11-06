@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json#",
   "manifestVersion": "1.22",
-  "version": "1.0.4",
+  "version": "1.0.7",
   "id": "01d979fb-0f5f-4a7e-9790-c35426b37ea8",
   "localizationInfo": {
     "defaultLanguageTag": "en-us"
@@ -121,7 +121,8 @@
             {
               "id": "ShowFileToMatter",
               "type": "openPage",
-              "view": "FileToMatter"
+              "view": "FileToMatter",
+              "pinnable": true
             }
           ]
         },
@@ -145,6 +146,29 @@
               "id": "ShowAttachFromMatter",
               "type": "openPage",
               "view": "AttachFromMatter"
+            }
+          ]
+        },
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.10"
+              }
+            ]
+          },
+          "id": "AutoRunRuntime",
+          "type": "general",
+          "code": {
+            "page": "https://localhost:3000/commands.html",
+            "script": "https://localhost:3000/launchevent.js"
+          },
+          "lifetime": "short",
+          "actions": [
+            {
+              "id": "onNewMessageComposeHandler",
+              "type": "executeFunction"
             }
           ]
         }
@@ -400,6 +424,27 @@
               "url": "https://localhost:3000/assets/icon-64.png"
             }
           }
+        }
+      ],
+      "autoRunEvents": [
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.10"
+              }
+            ],
+            "scopes": [
+              "mail"
+            ]
+          },
+          "events": [
+            {
+              "type": "newMessageComposeCreated",
+              "actionId": "onNewMessageComposeHandler"
+            }
+          ]
         }
       ]
     }

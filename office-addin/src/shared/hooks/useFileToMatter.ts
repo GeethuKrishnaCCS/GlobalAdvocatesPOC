@@ -14,6 +14,7 @@ import {
   getEmailFile,
   getFilingTarget,
   getOpenEmail,
+  readItem,
 } from "../services/outlookItem";
 import { uploadFile, type ISavedFile } from "../services/saveToMatterService";
 import { friendlyAuthError } from "../auth/authErrors";
@@ -161,6 +162,7 @@ export function useFileToMatter(): IFileToMatter {
   const submit = React.useCallback(async () => {
     if (!location) return;
     const selected = rows.filter((r) => ticked.has(r.id));
+    const item = readItem();
     setIsFiling(true);
     setError(undefined);
     const results: ISavedFile[] = [];
@@ -171,8 +173,8 @@ export function useFileToMatter(): IFileToMatter {
         if (!saved) {
           const body =
             row.kind === "email"
-              ? await getEmailFile()
-              : await getAttachmentFile({ ...row, kind: row.kind });
+              ? await getEmailFile(item)
+              : await getAttachmentFile(item, { ...row, kind: row.kind });
           saved = await uploadFile(location.driveId, folderId, row.fileName, body);
           done.current.set(key, saved);
         }

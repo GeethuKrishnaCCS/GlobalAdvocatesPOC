@@ -43,6 +43,12 @@ export default defineConfig({
     // Pure helpers (no browser): npm run test:unit
     { name: "unit", testMatch: /.*\.unit\.ts/ },
     { name: "login", testMatch: /login\.setup\.ts/, use: { headless: false } },
+    // DEV copy upload for the E2E account (Teams personal custom app): npm run package:dev && npm run e2e:dev-app
+    {
+      name: "dev-app",
+      testMatch: /dev-app\.setup\.ts/,
+      use: { storageState: existsSync(STORAGE_STATE) ? STORAGE_STATE : undefined },
+    },
     {
       name: "office-web",
       testMatch: /.*\.spec\.ts/,

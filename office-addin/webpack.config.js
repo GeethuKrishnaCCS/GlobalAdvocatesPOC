@@ -83,6 +83,9 @@ module.exports = async (env, options) => {
             from: "assets/*",
             to: "assets/[name][ext][query]",
           },
+          // Outlook compose banner runtime (event-based activation): copied as is, see src/launchevent.
+          { from: "src/launchevent/launchevent.js", to: "launchevent.js" },
+          { from: "src/launchevent/commands.html", to: "commands.html" },
           {
             from: "manifest*.{json,xml}",
             to: "[name]" + "[ext]",

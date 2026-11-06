@@ -39,12 +39,18 @@
   <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides" xsi:type="VersionOverridesV1_0">
     <VersionOverrides xmlns="http://schemas.microsoft.com/office/mailappversionoverrides/1.1" xsi:type="VersionOverridesV1_1">
       <Requirements>
-        <bt:Sets DefaultMinVersion="1.8">
+        <!-- 1.10: compose banner (LaunchEvent + notification action). -->
+        <bt:Sets DefaultMinVersion="1.10">
           <bt:Set Name="Mailbox"/>
         </bt:Sets>
       </Requirements>
       <Hosts>
         <Host xsi:type="MailHost">
+          <Runtimes>
+            <Runtime resid="WebViewRuntime.Url">
+              <Override type="javascript" resid="JSRuntime.Url"/>
+            </Runtime>
+          </Runtimes>
           <DesktopFormFactor>
             <ExtensionPoint xsi:type="MessageReadCommandSurface">
               <OfficeTab id="TabDefault">
@@ -63,6 +69,7 @@
                     </Icon>
                     <Action xsi:type="ShowTaskpane">
                       <SourceLocation resid="FileToMatter.Url"/>
+                      <SupportsPinning>true</SupportsPinning>
                     </Action>
                   </Control>
                 </Group>
@@ -90,6 +97,12 @@
                 </Group>
               </OfficeTab>
             </ExtensionPoint>
+            <ExtensionPoint xsi:type="LaunchEvent">
+              <LaunchEvents>
+                <LaunchEvent Type="OnNewMessageCompose" FunctionName="onNewMessageComposeHandler"/>
+              </LaunchEvents>
+              <SourceLocation resid="WebViewRuntime.Url"/>
+            </ExtensionPoint>
           </DesktopFormFactor>
         </Host>
       </Hosts>
@@ -102,6 +115,8 @@
         <bt:Urls>
           <bt:Url id="FileToMatter.Url" DefaultValue="https://localhost:3000/taskpane.html?view=file"/>
           <bt:Url id="AttachFromMatter.Url" DefaultValue="https://localhost:3000/taskpane.html?view=attach"/>
+          <bt:Url id="WebViewRuntime.Url" DefaultValue="https://localhost:3000/commands.html"/>
+          <bt:Url id="JSRuntime.Url" DefaultValue="https://localhost:3000/launchevent.js"/>
         </bt:Urls>
         <bt:ShortStrings>
           <bt:String id="Group.Label" DefaultValue="Global Advocate DEV"/>
