@@ -2,6 +2,7 @@ import { expect, test, type Frame } from "@playwright/test";
 import { FILE_TO_FOLDER_PROPERTY_ID as PROPERTY_ID } from "../src/shared/config";
 import {
   captureConsole,
+  expectFooterVisible,
   docUrlFor,
   graphFromPane,
   openPaneFor,
@@ -95,6 +96,7 @@ for (const host of HOSTS) {
     await pane.getByTestId("send-attach-name-pdf").fill(`${PDF_NAME}.pdf`);
     await pane.getByTestId("send-matter-file-email").check();
     await expect(pane.getByTestId("send-summary")).toHaveText(`2 attachments · ${tagged}`);
+    await expectFooterVisible(pane, "send-footer");
     await page.screenshot({ path: testInfo.outputPath("send-form.png") });
 
     // From here a draft may exist: whatever fails, the finally removes this run's test draft.

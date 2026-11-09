@@ -3,6 +3,7 @@ import { FILE_TO_FOLDER_PROPERTY_ID, MATTER_LIBRARY_NAME } from "../src/shared/c
 import {
   OUTLOOK_URL,
   captureConsole,
+  expectFooterVisible,
   graphFromPane,
   openOutlookPane,
   saveRunScreenshot,
@@ -237,6 +238,11 @@ test("outlook compose: attach from matter attaches a document once", async ({ pa
     await expect(
       pane.getByTestId(`folder-step-item-${FOLDER.toLowerCase().replace(/_/g, "-")}`)
     ).toBeVisible();
+    // Long folder + document list: the Back / Attach footer stays visible without scrolling (sticky).
+    expect(
+      await expectFooterVisible(pane, "attach-from-matter-footer"),
+      "documents list overflows the pane"
+    ).toBe(true);
     await pane.getByTestId("documents-step-search").fill(ATTACH_DOC.replace(/\.docx$/, ""));
     await pane.getByTestId("documents-step-search").press("Enter");
     const docId = "advtest-order-0001-docx";

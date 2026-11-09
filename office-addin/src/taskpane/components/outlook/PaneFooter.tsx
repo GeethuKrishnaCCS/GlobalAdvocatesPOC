@@ -8,6 +8,12 @@ const useStyles = makeStyles({
     gap: tokens.spacingVerticalS,
     paddingTop: tokens.spacingVerticalS,
     borderTop: `${tokens.strokeWidthThin} solid ${tokens.colorNeutralStroke2}`,
+    // Always visible: sticks to the bottom of the pane while the steps above scroll underneath.
+    position: "sticky",
+    bottom: 0,
+    zIndex: 1,
+    paddingBottom: tokens.spacingVerticalM,
+    backgroundColor: tokens.colorNeutralBackground1,
   },
   buttons: { display: "flex", gap: tokens.spacingHorizontalS },
   primary: { flexGrow: 1 },

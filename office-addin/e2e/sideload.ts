@@ -229,3 +229,20 @@ export async function openOutlookPane(
       );
   }
 }
+
+/** The pane footer (testId) is fully inside the pane's visible area, i.e. usable without scrolling; returns whether the
+ * pane content overflows (then the footer is visible only because it is sticky). */
+export async function expectFooterVisible(pane: Frame, testId: string): Promise<boolean> {
+  const box = await pane.getByTestId(testId).evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return {
+      top: r.top,
+      bottom: r.bottom,
+      view: window.innerHeight,
+      overflow: document.documentElement.scrollHeight > window.innerHeight,
+    };
+  });
+  expect(box.top, `${testId} top inside the pane`).toBeGreaterThanOrEqual(0);
+  expect(box.bottom, `${testId} bottom inside the pane`).toBeLessThanOrEqual(box.view + 1);
+  return box.overflow;
+}
