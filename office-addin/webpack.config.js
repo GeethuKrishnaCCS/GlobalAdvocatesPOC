@@ -89,6 +89,8 @@ module.exports = async (env, options) => {
           {
             from: "manifest*.{json,xml}",
             to: "[name]" + "[ext]",
+            // DEV-only Teams package for the E2E account; never hosted.
+            globOptions: { ignore: ["**/manifest.outlook-dev.json"] },
             transform(content, absoluteFrom) {
               if (dev) {
                 return content;

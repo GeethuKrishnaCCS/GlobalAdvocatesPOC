@@ -192,7 +192,7 @@ export async function graphFromPane<T>(
 
 /** Outlook on the web; the DEV copy (manifest.json, Teams custom app) carries the Outlook commands for the E2E account. */
 export const OUTLOOK_URL = "https://outlook.cloud.microsoft/mail/";
-export const OUTLOOK_DEV_ADDIN = "Global Advocate DEV";
+export const OUTLOOK_DEV_ADDIN = "Global Advocate DEV (Outlook)";
 
 /**
  * Opens the DEV Outlook add-in from the Apps flyout of the current surface (compose: "Apps", read: "More apps")
@@ -225,7 +225,7 @@ export async function openOutlookPane(
     if (opened) return pane()!;
     if (attempt === 2)
       throw new Error(
-        `no ${OUTLOOK_DEV_ADDIN} pane (DEV copy without Outlook commands? upload manifest.json v1.0.4+, see README)`
+        `no ${OUTLOOK_DEV_ADDIN} pane (Outlook DEV copy missing? npm run package:dev && npm run e2e:dev-app)`
       );
   }
 }

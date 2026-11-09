@@ -1,9 +1,15 @@
 import { expect, test } from "@playwright/test";
-import { cleanBaseName, fileNameProblem, splitFileName, toBaseName } from "../src/shared/services/fileName";
+import {
+  cleanBaseName,
+  fileNameProblem,
+  splitFileName,
+  toBaseName,
+} from "../src/shared/services/fileName";
 import { testIdPart } from "../src/shared/testId";
 import { isDarkColor } from "../src/shared/hooks/useOfficeTheme";
 import { composeLink, taggedSubject } from "../src/shared/services/mailText";
 import { friendlyAuthError } from "../src/shared/auth/authErrors";
+import { isDesktopPlatform } from "../src/shared/openInBrowser";
 
 test("cleanBaseName_Should_ReplaceIllegalCharacters_When_NameHasThem", () => {
   expect(cleanBaseName(' Letter: "draft" <v2>?. ')).toBe("Letter- -draft- -v2--");
@@ -23,14 +29,21 @@ test("splitFileName_Should_KeepInnerDots_When_Splitting", () => {
 });
 
 test("friendlyAuthError_Should_MapCodesAndKeepCorrelationId_When_Known", () => {
-  expect(friendlyAuthError(new Error("user_cancelled: sign-in window closed."))).toMatch(/cancelled/);
-  expect(friendlyAuthError(new Error("dialog_error 12011: blocked"))).toMatch(/blocked the sign-in window/);
-  const aad = "invalid_grant: AADSTS65001: The user or administrator has not consented. Trace ID: x Correlation ID: 0c3a4f2e-1111-2222-3333-444455556666";
+  expect(friendlyAuthError(new Error("user_cancelled: sign-in window closed."))).toMatch(
+    /cancelled/
+  );
+  expect(friendlyAuthError(new Error("dialog_error 12011: blocked"))).toMatch(
+    /blocked the sign-in window/
+  );
+  const aad =
+    "invalid_grant: AADSTS65001: The user or administrator has not consented. Trace ID: x Correlation ID: 0c3a4f2e-1111-2222-3333-444455556666";
   expect(friendlyAuthError(new Error(aad))).toBe(
     "Global Advocate needs permission to your data. Ask your administrator to grant consent. (Correlation ID: 0c3a4f2e-1111-2222-3333-444455556666)"
   );
   expect(friendlyAuthError(new Error("something odd"))).toBe("something odd");
-  expect(friendlyAuthError(new Error("sharepoint_consent_required: no SharePoint permission"))).toMatch(/SharePoint permission/);
+  expect(
+    friendlyAuthError(new Error("sharepoint_consent_required: no SharePoint permission"))
+  ).toMatch(/SharePoint permission/);
 });
 test("fileNameProblem_Should_RejectSharePointReservedParts_When_Present", () => {
   expect(fileNameProblem("~$Letter", ".docx")).toMatch(/reserved/);
@@ -51,7 +64,9 @@ test("testIdPart_Should_ProduceKebabCase_When_GivenNames", () => {
 
 test("taggedSubject_Should_TagOnce_When_MatterGiven", () => {
   expect(taggedSubject("Letter", "ADVTestMatter01")).toBe("[ADVTestMatter01] Letter");
-  expect(taggedSubject("[ADVTestMatter01] Letter", "ADVTestMatter01")).toBe("[ADVTestMatter01] Letter");
+  expect(taggedSubject("[ADVTestMatter01] Letter", "ADVTestMatter01")).toBe(
+    "[ADVTestMatter01] Letter"
+  );
   expect(taggedSubject(" Letter ", undefined)).toBe("Letter");
 });
 
@@ -62,10 +77,18 @@ test("isDarkColor_Should_ClassifyOfficeBackgrounds_When_Hex", () => {
 });
 
 test("composeLink_Should_OpenDraftInCompose_When_WebLinkHasItemId", () => {
-  const webLink = "https://outlook.office365.com/owa/?ItemID=AAMk%2BAB%3D&exvsurl=1&viewmodel=ReadMessageItem";
+  const webLink =
+    "https://outlook.office365.com/owa/?ItemID=AAMk%2BAB%3D&exvsurl=1&viewmodel=ReadMessageItem";
   expect(composeLink(webLink)).toBe(
     "https://outlook.cloud.microsoft/mail/deeplink/compose/AAMk%2BAB%3D?ItemID=AAMk%2BAB%3D&exvsurl=1"
   );
   expect(composeLink("https://outlook.office.com/mail/")).toBe("https://outlook.office.com/mail/");
   expect(composeLink("")).toBe("");
+});
+
+test("isDesktopPlatform_Should_BeTrueOnlyForDesktopOffice_When_GivenPlatform", () => {
+  expect(isDesktopPlatform("PC")).toBe(true);
+  expect(isDesktopPlatform("Mac")).toBe(true);
+  expect(isDesktopPlatform("OfficeOnline")).toBe(false);
+  expect(isDesktopPlatform(undefined)).toBe(false);
 });

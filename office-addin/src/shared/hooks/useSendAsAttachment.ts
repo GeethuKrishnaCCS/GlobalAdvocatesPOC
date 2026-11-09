@@ -11,7 +11,7 @@ import {
 } from "../services/mailDraftService";
 import { fileNameProblem, toBaseName } from "../services/fileName";
 import { taggedSubject } from "../services/mailText";
-import { openWhenReady } from "../openInBrowser";
+import { isDesktopHost, openWhenReady } from "../openInBrowser";
 
 /* global Office, Blob */
 
@@ -39,8 +39,10 @@ export interface ISendForm {
 export interface ISendResult {
   draft: IDraft;
   attachmentNames: string[];
-  /** False when the browser blocked the new window; the result screen's link opens it instead. */
+  /** False when the browser blocked the new window (or on desktop, where none opens); the result screen's link opens it instead. */
   opened: boolean;
+  /** Office desktop: the result screen points to Outlook Drafts and the Outlook app. */
+  desktop: boolean;
 }
 
 /** Filing target of the selected matter: "driveId|itemId", null when the matter has no such folder. */
@@ -179,8 +181,10 @@ export function useSendAsAttachment(host: Office.HostType): ISendAsAttachment {
 
   const create = React.useCallback(async () => {
     if (!canCreate) return;
-    // Before any await: the window must open inside the click.
-    const open = openWhenReady();
+    // Desktop: no browser window. The browser may be signed in as someone else (reported 2026-11-09); the result
+    // points to Outlook Drafts instead. Web: open compose; before any await, the window must open inside the click.
+    const desktop = isDesktopHost();
+    const open = desktop ? () => false : openWhenReady();
     setIsCreating(true);
     setError(undefined);
     const request: IDraftRequest = {
@@ -206,6 +210,7 @@ export function useSendAsAttachment(host: Office.HostType): ISendAsAttachment {
         draft: progress.draft,
         attachmentNames: attachments.map((a) => a.fileName),
         opened,
+        desktop,
       });
       progressRef.current = undefined;
       setRetryPending(false);

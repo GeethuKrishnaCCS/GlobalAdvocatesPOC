@@ -1,10 +1,11 @@
 /* global Office */
-// Compose banner (event-based activation, OnNewMessageCompose): offers Attach from Matter on every new email.
+// Compose banner (event-based activation, OnMessageCompose): offers Attach from Matter whenever an email is composed:
+// new, reply, reply all, forward, and reopening a draft (OnNewMessageCompose skipped drafts).
 // Plain script, not bundled: classic Outlook on Windows loads this file directly in its JavaScript-only runtime.
 
 var BANNER_KEY = "advAttachFromMatter";
 
-function onNewMessageComposeHandler(event) {
+function onMessageComposeHandler(event) {
   Office.context.mailbox.item.notificationMessages.addAsync(
     BANNER_KEY,
     {
@@ -29,4 +30,4 @@ function onNewMessageComposeHandler(event) {
   );
 }
 
-Office.actions.associate("onNewMessageComposeHandler", onNewMessageComposeHandler);
+Office.actions.associate("onMessageComposeHandler", onMessageComposeHandler);

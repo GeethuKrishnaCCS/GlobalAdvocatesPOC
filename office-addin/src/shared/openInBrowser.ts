@@ -35,3 +35,20 @@ export function openInBrowser(event: React.MouseEvent, url: string): void {
   event.preventDefault();
   Office.context.ui.openBrowserWindow(url);
 }
+
+/**
+ * Opens the Outlook app (new Outlook registers ms-outlook:). It can only bring Outlook to the front: opening a given
+ * draft is "not supported yet" in new Outlook (spike 2026-11-09), so the pane points the user to Drafts. Office on
+ * Windows asks once whether the add-in may open this kind of link (admins can pre-allow it, see README).
+ */
+export const OUTLOOK_APP_URL = "ms-outlook://";
+
+/** True for Office desktop platforms (Windows "PC", Mac); Office on the web is "OfficeOnline". Pure. */
+export function isDesktopPlatform(platform: Office.PlatformType | string | undefined): boolean {
+  return platform === "PC" || platform === "Mac";
+}
+
+/** True in Office desktop apps, where links open outside the pane. */
+export function isDesktopHost(): boolean {
+  return isDesktopPlatform(Office.context.platform);
+}

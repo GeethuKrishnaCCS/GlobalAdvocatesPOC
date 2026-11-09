@@ -31,7 +31,7 @@
     "validate": "office-addin-manifest validate manifest.xml && office-addin-manifest validate manifest.outlook.xml",
     "watch": "webpack --mode development --watch",
     "test:unit": "playwright test --project=unit",
-    "package:dev": "pwsh -NoProfile -Command \"Compress-Archive -Force -Path manifest.json,assets -DestinationPath release/advocate-addin-dev.zip\"",
+    "package:dev": "pwsh -NoProfile -Command \"Compress-Archive -Force -Path manifest.json,assets -DestinationPath release/advocate-addin-dev.zip; $t='release/outlook-dev'; Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue; New-Item -ItemType Directory $t | Out-Null; Copy-Item manifest.outlook-dev.json $t/manifest.json; Copy-Item -Recurse assets $t/assets; Compress-Archive -Force -Path $t/manifest.json,$t/assets -DestinationPath release/advocate-addin-outlook-dev.zip\"",
     "e2e:dev-app": "playwright test --project=dev-app"
   },
   "dependencies": {

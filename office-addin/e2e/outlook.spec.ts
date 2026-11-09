@@ -341,7 +341,7 @@ test("outlook compose: the new-email banner offers Attach from Matter and opens 
   const subject = `ADVTest E2E Banner ${Date.now()}`;
   await page.goto(`${OUTLOOK_URL}deeplink/compose`);
   await page.getByPlaceholder("Add a subject").fill(subject, { timeout: 60_000 });
-  // Outlook loads the event runtime (commands.html) for the new email but dispatches OnNewMessageCompose only to
+  // Outlook loads the event runtime (commands.html) for the new email but dispatches OnMessageCompose only to
   // admin-deployed add-ins; the DEV copy is user-installed, so the test runs the handler the event would run.
   // shortcut: the event dispatch itself is checked only after Centralized Deployment (manual, see task.md).
   const runtime = (): Frame | undefined =>
@@ -363,9 +363,9 @@ test("outlook compose: the new-email banner offers Attach from Matter and opens 
       new Promise<void>((resolve) =>
         (
           window as unknown as {
-            onNewMessageComposeHandler: (e: { completed: () => void }) => void;
+            onMessageComposeHandler: (e: { completed: () => void }) => void;
           }
-        ).onNewMessageComposeHandler({ completed: resolve })
+        ).onMessageComposeHandler({ completed: resolve })
       )
   );
   const banner = page.getByText("Global Advocate: attach documents from a matter.");
@@ -397,4 +397,71 @@ test("outlook compose: the new-email banner offers Attach from Matter and opens 
   ).catch(() => ({ value: [] }));
   for (const d of drafts.value)
     await graphFromPane(pane()!, "DELETE", `/me/messages/${d.id}`).catch(() => undefined);
+});
+
+/** Outlook loaded the banner runtime for the open compose form (OnMessageCompose is wired for it). */
+async function expectBannerRuntime(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () => page.frames().some((f) => f.url().startsWith("https://localhost:3000/commands.html")),
+      {
+        message: "banner runtime (commands.html) not loaded for this compose form",
+        timeout: 60_000,
+      }
+    )
+    .toBe(true);
+}
+
+test("outlook compose: a reply and a reopened draft load the banner runtime and offer Attach from Matter", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(6 * 60_000);
+  captureConsole(page, testInfo);
+  const stamp = `${Date.now()}`;
+  const subject = `ADVTest E2E Reply ${stamp}`;
+  const draftSubject = `ADVTest E2E Draft ${stamp}`;
+  let setup = await setupPane(page);
+  const messageId = await createTestEmail(setup, subject, stamp);
+  await graphFromPane(setup, "POST", "/me/messages", {
+    subject: draftSubject,
+    body: { contentType: "Text", content: "ADVTest draft" },
+  });
+
+  try {
+    // Reply: compose form inside the reading pane.
+    await openEmail(page, subject);
+    await page
+      .getByRole("button", { name: "Reply", exact: true })
+      .first()
+      .click({ timeout: 60_000 });
+    await expectBannerRuntime(page);
+    let pane = await openOutlookPane(page, "Apps");
+    await signIn(page, pane);
+    setup = pane;
+    await expect(pane.getByTestId("save-step-documents")).toHaveText("2. Documents");
+
+    // Reopened draft (OnNewMessageCompose skipped these; OnMessageCompose covers them).
+    await page.goto(`${OUTLOOK_URL}drafts`);
+    await page
+      .getByRole("option", { name: new RegExp(draftSubject) })
+      .first()
+      .click({ timeout: 60_000 });
+    await expectBannerRuntime(page);
+    pane = await openOutlookPane(page, "Apps");
+    await signIn(page, pane);
+    setup = pane;
+    await expect(pane.getByTestId("save-step-documents")).toHaveText("2. Documents");
+  } finally {
+    await graphFromPane(setup, "DELETE", `/me/messages/${messageId}`).catch(() => undefined);
+    for (const s of [draftSubject, `RE: ${subject}`]) {
+      const filter = encodeURIComponent(`subject eq '${s}'`);
+      const drafts = await graphFromPane<{ value: { id: string }[] }>(
+        setup,
+        "GET",
+        `/me/mailFolders/drafts/messages?$filter=${filter}&$select=id`
+      ).catch(() => ({ value: [] }));
+      for (const d of drafts.value)
+        await graphFromPane(setup, "DELETE", `/me/messages/${d.id}`).catch(() => undefined);
+    }
+  }
 });

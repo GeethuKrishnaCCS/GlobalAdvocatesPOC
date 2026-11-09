@@ -1,0 +1,308 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json#",
+  "manifestVersion": "1.22",
+  "version": "1.0.0",
+  "id": "67be1ee8-81ef-4619-a677-6ba5a250439f",
+  "localizationInfo": {
+    "defaultLanguageTag": "en-us"
+  },
+  "developer": {
+    "name": "ADVTest POC",
+    "websiteUrl": "https://localhost:3000",
+    "privacyUrl": "https://localhost:3000",
+    "termsOfUseUrl": "https://localhost:3000"
+  },
+  "name": {
+    "short": "Global Advocate DEV (Outlook)",
+    "full": "Global Advocate DEV for Outlook (ADVTest POC, dev server)"
+  },
+  "description": {
+    "short": "Outlook DEV copy for testing: loads from https://localhost:3000.",
+    "full": "Developer copy of the Global Advocate Outlook add-in for the E2E test account: File to Matter, Attach from Matter, compose banner."
+  },
+  "icons": {
+    "outline": "assets/outline.png",
+    "color": "assets/color.png"
+  },
+  "accentColor": "#0F6E5A",
+  "validDomains": [
+    "https://localhost:3000"
+  ],
+  "showLoadingIndicator": false,
+  "isFullScreen": false,
+  "defaultBlockUntilAdminAction": false,
+  "authorization": {
+    "permissions": {
+      "resourceSpecific": [
+        {
+          "name": "MailboxItem.ReadWrite.User",
+          "type": "Delegated"
+        }
+      ]
+    }
+  },
+  "extensions": [
+    {
+      "requirements": {
+        "scopes": [
+          "mail"
+        ],
+        "capabilities": [
+          {
+            "name": "Mailbox",
+            "minVersion": "1.8"
+          }
+        ]
+      },
+      "runtimes": [
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.8"
+              }
+            ]
+          },
+          "id": "FileToMatterRuntime",
+          "type": "general",
+          "code": {
+            "page": "https://localhost:3000/taskpane.html?view=file"
+          },
+          "lifetime": "short",
+          "actions": [
+            {
+              "id": "ShowFileToMatter",
+              "type": "openPage",
+              "view": "FileToMatter",
+              "pinnable": true
+            }
+          ]
+        },
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.8"
+              }
+            ]
+          },
+          "id": "AttachFromMatterRuntime",
+          "type": "general",
+          "code": {
+            "page": "https://localhost:3000/taskpane.html?view=attach"
+          },
+          "lifetime": "short",
+          "actions": [
+            {
+              "id": "ShowAttachFromMatter",
+              "type": "openPage",
+              "view": "AttachFromMatter"
+            }
+          ]
+        },
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.12"
+              }
+            ]
+          },
+          "id": "AutoRunRuntime",
+          "type": "general",
+          "code": {
+            "page": "https://localhost:3000/commands.html",
+            "script": "https://localhost:3000/launchevent.js"
+          },
+          "lifetime": "short",
+          "actions": [
+            {
+              "id": "onMessageComposeHandler",
+              "type": "executeFunction"
+            }
+          ]
+        }
+      ],
+      "ribbons": [
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.8"
+              }
+            ],
+            "scopes": [
+              "mail"
+            ],
+            "formFactors": [
+              "desktop"
+            ]
+          },
+          "contexts": [
+            "mailRead"
+          ],
+          "tabs": [
+            {
+              "builtInTabId": "TabDefault",
+              "groups": [
+                {
+                  "id": "MatterReadGroup",
+                  "label": "Global Advocate DEV",
+                  "icons": [
+                    {
+                      "size": 16,
+                      "url": "https://localhost:3000/assets/icon-16.png"
+                    },
+                    {
+                      "size": 32,
+                      "url": "https://localhost:3000/assets/icon-32.png"
+                    },
+                    {
+                      "size": 80,
+                      "url": "https://localhost:3000/assets/icon-80.png"
+                    }
+                  ],
+                  "controls": [
+                    {
+                      "id": "FileToMatterButton",
+                      "type": "button",
+                      "label": "File to Matter",
+                      "icons": [
+                        {
+                          "size": 16,
+                          "url": "https://localhost:3000/assets/icon-16.png"
+                        },
+                        {
+                          "size": 32,
+                          "url": "https://localhost:3000/assets/icon-32.png"
+                        },
+                        {
+                          "size": 80,
+                          "url": "https://localhost:3000/assets/icon-80.png"
+                        }
+                      ],
+                      "supertip": {
+                        "title": "File to Matter",
+                        "description": "File this email and its attachments into a matter folder."
+                      },
+                      "actionId": "ShowFileToMatter"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.8"
+              }
+            ],
+            "scopes": [
+              "mail"
+            ],
+            "formFactors": [
+              "desktop"
+            ]
+          },
+          "contexts": [
+            "mailCompose"
+          ],
+          "tabs": [
+            {
+              "builtInTabId": "TabDefault",
+              "groups": [
+                {
+                  "id": "MatterComposeGroup",
+                  "label": "Global Advocate DEV",
+                  "icons": [
+                    {
+                      "size": 16,
+                      "url": "https://localhost:3000/assets/icon-16.png"
+                    },
+                    {
+                      "size": 32,
+                      "url": "https://localhost:3000/assets/icon-32.png"
+                    },
+                    {
+                      "size": 80,
+                      "url": "https://localhost:3000/assets/icon-80.png"
+                    }
+                  ],
+                  "controls": [
+                    {
+                      "id": "AttachFromMatterButton",
+                      "type": "button",
+                      "label": "Attach from Matter",
+                      "icons": [
+                        {
+                          "size": 16,
+                          "url": "https://localhost:3000/assets/icon-16.png"
+                        },
+                        {
+                          "size": 32,
+                          "url": "https://localhost:3000/assets/icon-32.png"
+                        },
+                        {
+                          "size": 80,
+                          "url": "https://localhost:3000/assets/icon-80.png"
+                        }
+                      ],
+                      "supertip": {
+                        "title": "Attach from Matter",
+                        "description": "Attach documents from a matter to this email."
+                      },
+                      "actionId": "ShowAttachFromMatter"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "alternates": [
+        {
+          "alternateIcons": {
+            "icon": {
+              "size": 32,
+              "url": "https://localhost:3000/assets/icon-32.png"
+            },
+            "highResolutionIcon": {
+              "size": 64,
+              "url": "https://localhost:3000/assets/icon-64.png"
+            }
+          }
+        }
+      ],
+      "autoRunEvents": [
+        {
+          "requirements": {
+            "capabilities": [
+              {
+                "name": "Mailbox",
+                "minVersion": "1.12"
+              }
+            ],
+            "scopes": [
+              "mail"
+            ]
+          },
+          "events": [
+            {
+              "type": "messageComposeOpened",
+              "actionId": "onMessageComposeHandler"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
