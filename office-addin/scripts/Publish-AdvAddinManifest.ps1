@@ -40,7 +40,10 @@ param(
 $ErrorActionPreference = 'Stop'
 $locale = 'en-US'
 
-if (-not (Test-Path $ManifestPath)) { throw "No manifest at $ManifestPath - run Deploy-AdvAddinWeb.ps1 -Execute first." }
+if (-not (Test-Path -LiteralPath $ManifestPath)) { throw "No manifest at $ManifestPath - run Deploy-AdvAddinWeb.ps1 -Execute first." }
+# Absolute from here on: the O365CentralizedAddInDeployment cmdlets open the file with .NET, which resolves relative
+# paths against the process start folder, not the PowerShell location (cd), so a relative path failed there (2026-11-09).
+$ManifestPath = (Resolve-Path -LiteralPath $ManifestPath).ProviderPath
 [xml]$xml = Get-Content $ManifestPath -Raw
 if ($xml.OuterXml -match 'localhost') { throw "$ManifestPath references localhost - use the production build from Deploy-AdvAddinWeb.ps1." }
 
