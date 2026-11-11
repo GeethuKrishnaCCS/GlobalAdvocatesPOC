@@ -8,22 +8,26 @@ import { graphClient } from "./graphClient";
 const SIMPLE_UPLOAD_LIMIT = 4 * 1024 * 1024;
 /** Upload session slice: Graph requires multiples of 320 KiB. */
 const UPLOAD_SLICE = 10 * 320 * 1024;
-/** Same name in the folder → new version of that file (library versioning on), never a renamed copy. */
-const CONFLICT_BEHAVIOR = "replace";
+/**
+ * Same name in the folder: "replace" → new version of that file (documents; library versioning on), "rename" →
+ * SharePoint keeps both ("name 1.eml"; filed emails, where two different emails can share date + subject).
+ */
+export type ConflictBehavior = "replace" | "rename";
 
 /** DriveItem fields the pane uses after an upload. */
 const ITEM_SELECT = "id,name,webUrl,size,parentReference";
 
 /**
- * Uploads `body` as `fileName` into a drive folder (`folderId` "root" for the library root), replacing a file of
- * the same name as a new version. `fileName` must already be clean (see fileName.ts). A Blob, because graph-client
+ * Uploads `body` as `fileName` into a drive folder (`folderId` "root" for the library root); a file of the same
+ * name is replaced as a new version unless `conflictBehavior` says otherwise. `fileName` must already be clean (see fileName.ts). A Blob, because graph-client
  * turns ArrayBuffer bodies (and slices) into Node Buffers, which do not exist in browsers.
  */
 export async function uploadToFolder(
   driveId: string,
   folderId: string,
   fileName: string,
-  body: Blob
+  body: Blob,
+  conflictBehavior: ConflictBehavior = "replace"
 ): Promise<DriveItem> {
   const itemPath = `/drives/${driveId}/items/${folderId}:/${encodeURIComponent(fileName)}:`;
   if (body.size <= SIMPLE_UPLOAD_LIMIT) {
@@ -32,7 +36,7 @@ export async function uploadToFolder(
         .api(`${itemPath}/content`)
         // graph-client labels put() bodies as JSON unless told otherwise.
         .header("Content-Type", "application/octet-stream")
-        .query({ "@microsoft.graph.conflictBehavior": CONFLICT_BEHAVIOR, $select: ITEM_SELECT })
+        .query({ "@microsoft.graph.conflictBehavior": conflictBehavior, $select: ITEM_SELECT })
         .put(body)) as DriveItem
     );
   }
@@ -40,7 +44,7 @@ export async function uploadToFolder(
     graphClient,
     `${itemPath}/createUploadSession`,
     {
-      item: { "@microsoft.graph.conflictBehavior": CONFLICT_BEHAVIOR },
+      item: { "@microsoft.graph.conflictBehavior": conflictBehavior },
     }
   );
   // The SDK sends slices to the pre-authenticated uploadUrl without the Graph bearer token.

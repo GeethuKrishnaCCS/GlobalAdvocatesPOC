@@ -1,6 +1,6 @@
 import type { DriveItem, FieldValueSet } from "@microsoft/microsoft-graph-types";
 import { graphClient } from "./graphClient";
-import { uploadToFolder } from "./driveUpload";
+import { uploadToFolder, type ConflictBehavior } from "./driveUpload";
 
 /* global Blob, fetch */
 
@@ -40,16 +40,20 @@ function toFields(properties: IDocumentProperties): Record<string, string | null
   };
 }
 
-/** Uploads one file into a library folder ("root" for the library root); same name → new version of that file. */
+/**
+ * Uploads one file into a library folder ("root" for the library root); same name → new version of that file, or
+ * with "rename" a second file (filed emails).
+ */
 export async function uploadFile(
   driveId: string,
   folderId: string,
   fileName: string,
-  body: Blob
+  body: Blob,
+  conflictBehavior: ConflictBehavior = "replace"
 ): Promise<ISavedFile> {
   let item: DriveItem;
   try {
-    item = await uploadToFolder(driveId, folderId, fileName, body);
+    item = await uploadToFolder(driveId, folderId, fileName, body, conflictBehavior);
   } catch (e) {
     if (isLocked(e)) {
       throw new Error(

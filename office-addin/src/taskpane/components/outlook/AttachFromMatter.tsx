@@ -1,6 +1,7 @@
 import * as React from "react";
 import { MessageBar, MessageBarBody, Spinner, makeStyles, tokens } from "@fluentui/react-components";
 import { useAttachFromMatter } from "../../../shared/hooks/useAttachFromMatter";
+import { useMatterPins } from "../../../shared/hooks/useMatterPins";
 import { MatterStep } from "../saveToMatter/MatterStep";
 import { FolderStep } from "../saveToMatter/FolderStep";
 import { StepHeader, type IStep } from "../saveToMatter/StepHeader";
@@ -20,11 +21,12 @@ const useStyles = makeStyles({
 export const AttachFromMatter: React.FC = () => {
   const styles = useStyles();
   const { state, actions, computed } = useAttachFromMatter();
+  const pins = useMatterPins();
   const { browser } = state;
   const { location } = browser.state;
   const loading = browser.state.isLoading || state.isSearching;
   const busy = loading || state.isAttaching;
-  const error = state.error ?? browser.state.error;
+  const error = state.error ?? browser.state.error ?? pins.state.error;
 
   return (
     <div className={styles.root} data-testid="attach-from-matter">
@@ -48,6 +50,8 @@ export const AttachFromMatter: React.FC = () => {
           disabled={busy}
           onSelect={(m) => void actions.selectMatter(m)}
           onRetry={() => void browser.actions.loadMatters()}
+          pinned={pins.state.pinned}
+          onTogglePin={(m) => pins.actions.toggle(m.ref)}
         />
       )}
       {state.step === "documents" && location && (

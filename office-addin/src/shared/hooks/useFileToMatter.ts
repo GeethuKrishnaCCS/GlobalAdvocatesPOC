@@ -175,7 +175,8 @@ export function useFileToMatter(): IFileToMatter {
             row.kind === "email"
               ? await getEmailFile(item)
               : await getAttachmentFile(item, { ...row, kind: row.kind });
-          saved = await uploadFile(location.driveId, folderId, row.fileName, body);
+          // "rename": another email with the same date + subject (or attachment name) must not be overwritten.
+          saved = await uploadFile(location.driveId, folderId, row.fileName, body, "rename");
           done.current.set(key, saved);
         }
         results.push(saved);

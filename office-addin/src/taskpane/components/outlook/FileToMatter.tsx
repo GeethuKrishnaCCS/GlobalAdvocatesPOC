@@ -1,12 +1,14 @@
 import * as React from "react";
-import { Body1, Link, MessageBar, MessageBarBody, Spinner, makeStyles, tokens } from "@fluentui/react-components";
+import { Body1, Link, MessageBar, MessageBarBody, Spinner, Tab, TabList, makeStyles, tokens } from "@fluentui/react-components";
 import { useFileToMatter } from "../../../shared/hooks/useFileToMatter";
 import { useMailItem } from "../../../shared/hooks/useMailItem";
+import { useMatterPins, type IMatterPins } from "../../../shared/hooks/useMatterPins";
 import { testIdPart } from "../../../shared/testId";
 import { MatterStep } from "../saveToMatter/MatterStep";
 import { FolderStep } from "../saveToMatter/FolderStep";
 import { StepHeader, type IStep } from "../saveToMatter/StepHeader";
 import { ItemsStep } from "./ItemsStep";
+import { MatterBrowser } from "./MatterBrowser";
 import { PaneFooter } from "./PaneFooter";
 
 const STEPS: IStep[] = [
@@ -18,23 +20,66 @@ const STEPS: IStep[] = [
 const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalM },
   list: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalXS },
+  hidden: { display: "none" },
 });
 
+type FileTab = "email" | "matters";
+
 /**
- * File to Matter (Outlook read). The pane can be pinned: selecting another email starts the wizard over for it
- * (the key remounts the body, so no state of the previous email survives).
+ * File to Matter (Outlook read), two tabs: "This email" (wizard for the selected email) and "My matters" (drag emails
+ * onto matters and folders, see filed emails). The pane can be pinned: selecting another email starts the wizard over
+ * for it (the key remounts the body, so no state of the previous email survives); "My matters" keeps its place.
+ * Both tabs stay mounted once shown, so switching tabs loses neither the wizard's progress nor a running drop.
  */
 export const FileToMatter: React.FC = () => {
+  const styles = useStyles();
   const { itemKey, hasItem } = useMailItem();
-  return hasItem ? (
-    <FileToMatterBody key={itemKey} />
-  ) : (
-    <Body1 data-testid="file-to-matter-no-item">Select an email to file it to a matter.</Body1>
+  const [tab, setTab] = React.useState<FileTab>("email");
+  const [mattersShown, setMattersShown] = React.useState(false);
+  // One instance for both tabs: a matter pinned in one is pinned in the other at once.
+  const pins = useMatterPins();
+
+  return (
+    <div className={styles.root} data-testid="file-to-matter-tabs">
+      <TabList
+        size="small"
+        selectedValue={tab}
+        onTabSelect={(_, data) => {
+          setTab(data.value as FileTab);
+          if (data.value === "matters") setMattersShown(true);
+        }}
+        data-testid="file-to-matter-tablist"
+      >
+        <Tab value="email" data-testid="file-to-matter-tab-email">
+          This email
+        </Tab>
+        <Tab value="matters" data-testid="file-to-matter-tab-matters">
+          My matters
+        </Tab>
+      </TabList>
+      {pins.state.error && (
+        <MessageBar intent="error" layout="multiline" data-testid="file-to-matter-pin-error">
+          <MessageBarBody>{pins.state.error}</MessageBarBody>
+        </MessageBar>
+      )}
+      <div className={tab === "email" ? undefined : styles.hidden} data-testid="file-to-matter-panel-email">
+        {hasItem ? (
+          <FileToMatterBody key={itemKey} pins={pins} />
+        ) : (
+          <Body1 data-testid="file-to-matter-no-item">Select an email to file it to a matter.</Body1>
+        )}
+      </div>
+      {mattersShown && (
+        <div className={tab === "matters" ? undefined : styles.hidden} data-testid="file-to-matter-panel-matters">
+          <MatterBrowser pins={pins} />
+        </div>
+      )}
+    </div>
   );
 };
 
 /** The wizard for one email. */
-const FileToMatterBody: React.FC = () => {
+const FileToMatterBody: React.FC<{ pins: IMatterPins }> = ({ pins }) => {
   const styles = useStyles();
   const { state, actions, computed } = useFileToMatter();
   const { browser } = state;
@@ -61,6 +106,8 @@ const FileToMatterBody: React.FC = () => {
           disabled={busy}
           onSelect={(m) => void actions.selectMatter(m)}
           onRetry={() => void browser.actions.loadMatters()}
+          pinned={pins.state.pinned}
+          onTogglePin={(m) => pins.actions.toggle(m.ref)}
         />
       )}
       {onFolder && location && (

@@ -1,5 +1,5 @@
 import { expect, test, type Frame, type Page, type TestInfo } from "@playwright/test";
-import { appendFileSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 /* global process */
@@ -38,11 +38,15 @@ export function captureConsole(page: Page, testInfo: TestInfo): void {
   const file = testInfo.outputPath("console.log");
   const write = (line: string): void =>
     appendFileSync(file, `${new Date().toISOString()} ${line}\n`);
+  // The pane is served by the dev server, or by the hosted origin when the local build stands in for it.
+  const paneOrigins = [DEV_SERVER_ORIGIN, process.env.ADV_E2E_HOSTED_ORIGIN].filter(
+    Boolean
+  ) as string[];
+  const fromPane = (url: string | undefined): boolean =>
+    paneOrigins.some((o) => url?.startsWith(o));
   const attach = (p: Page, tag: string): void => {
     p.on("console", (m) =>
-      write(
-        `[${m.type()}] ${tag}${m.location().url?.startsWith(DEV_SERVER_ORIGIN) ? "PANE " : ""}${m.text()}`
-      )
+      write(`[${m.type()}] ${tag}${fromPane(m.location().url) ? "PANE " : ""}${m.text()}`)
     );
     p.on("pageerror", (e) => write(`[pageerror] ${tag}${e.message}`));
     p.on("requestfailed", (r) =>
@@ -195,6 +199,26 @@ export const OUTLOOK_URL = "https://outlook.cloud.microsoft/mail/";
 export const OUTLOOK_DEV_ADDIN = "Global Advocate DEV (Outlook)";
 
 /**
+ * ADV_E2E_OUTLOOK_LOCAL_DIST=1 (with ADV_E2E_HOSTED_ORIGIN): open the centrally deployed add-in's tile and serve the
+ * local production build (./dist, `npm run build`) in place of its hosted files, in this test browser only. For when
+ * Outlook drops the DEV copy from its apps list again (see dev-app.setup.ts); the deployed tile is stable.
+ */
+function localDistOrigin(): string | undefined {
+  return process.env.ADV_E2E_OUTLOOK_LOCAL_DIST ? hostedOrigin() : undefined;
+}
+
+const servingDist = new WeakSet<Page>();
+
+async function serveLocalDist(page: Page, origin: string): Promise<void> {
+  if (servingDist.has(page)) return;
+  servingDist.add(page);
+  await page.route(`${origin}/**`, (route) => {
+    const file = join("dist", new URL(route.request().url()).pathname);
+    return existsSync(file) ? route.fulfill({ path: file }) : route.continue();
+  });
+}
+
+/**
  * Opens the DEV Outlook add-in from the Apps flyout of the current surface (compose: "Apps", read: "More apps")
  * and returns its pane (served by the dev server). One button per surface, so the app tile opens the pane directly.
  */
@@ -202,34 +226,48 @@ export async function openOutlookPane(
   page: Page,
   appsButton: "Apps" | "More apps"
 ): Promise<Frame> {
+  const distOrigin = localDistOrigin();
+  if (distOrigin) await serveLocalDist(page, distOrigin);
+  const origin = distOrigin ?? DEV_SERVER_ORIGIN;
+  const tile = distOrigin ? PROD_TAB : OUTLOOK_DEV_ADDIN;
   // taskpane.html, not commands.html: in compose Outlook also loads the banner runtime from the dev server.
   const pane = (): Frame | undefined =>
-    page.frames().find((f) => f.url().startsWith(`${DEV_SERVER_ORIGIN}/taskpane.html`));
+    page.frames().find((f) => f.url().startsWith(`${origin}/taskpane.html`));
   // Outlook toggles the add-in pane: when it still thinks an earlier pane is open, the first click only closes it.
+  // The flyout can also open before Outlook listed the add-ins of the selected email, or not open at all: try again.
+  const ATTEMPTS = 4;
   for (let attempt = 1; ; attempt++) {
     await page
       .getByRole("button", { name: appsButton, exact: true })
       .last()
       .click({ timeout: 60_000 });
-    await page
-      .getByRole("listitem", { name: OUTLOOK_DEV_ADDIN, exact: true })
+    const opened = await page
+      .getByRole("listitem", { name: tile, exact: true })
       .first()
-      .click({ timeout: 30_000 });
-    const opened = await expect
-      .poll(() => !!pane(), { timeout: PANE_WAIT_MS / 2 })
-      .toBe(true)
+      .click({ timeout: PANE_WAIT_MS / 2 })
+      .then(() => expect.poll(() => !!pane(), { timeout: PANE_WAIT_MS / 2 }).toBe(true))
       .then(
         () => true,
         () => false
       );
     if (opened) return pane()!;
-    if (attempt === 2)
+    if (attempt === ATTEMPTS)
       throw new Error(
-        `no ${OUTLOOK_DEV_ADDIN} pane (Outlook DEV copy missing? npm run package:dev && npm run e2e:dev-app)`
+        `no ${tile} pane (Outlook DEV copy missing? npm run package:dev && npm run e2e:dev-app)`
       );
+    await page.keyboard.press("Escape");
+    // Some page loads never list the add-ins for the email: reload and select the same email again. Read surface
+    // only; reloading a compose form would lose the draft under test.
+    if (attempt >= 2 && appsButton === "More apps") {
+      const selected = page.getByRole("option", { selected: true }).first();
+      const name = await selected.getAttribute("aria-label", { timeout: 5_000 }).catch(() => null);
+      await page.reload();
+      await (name ? page.getByRole("option", { name, exact: true }) : page.getByRole("option"))
+        .first()
+        .click({ timeout: 60_000 });
+    }
   }
 }
-
 /** The pane footer (testId) is fully inside the pane's visible area, i.e. usable without scrolling; returns whether the
  * pane content overflows (then the footer is visible only because it is sticky). */
 export async function expectFooterVisible(pane: Frame, testId: string): Promise<boolean> {
