@@ -34,8 +34,9 @@ type FileTab = "email" | "matters";
 export const FileToMatter: React.FC = () => {
   const styles = useStyles();
   const { itemKey, hasItem } = useMailItem();
-  const [tab, setTab] = React.useState<FileTab>("email");
-  const [mattersShown, setMattersShown] = React.useState(false);
+  // Opened with no single email (no item context): start on My matters; later selection changes never move the tab.
+  const [tab, setTab] = React.useState<FileTab>(() => (hasItem ? "email" : "matters"));
+  const [mattersShown, setMattersShown] = React.useState(() => !hasItem);
   // One instance for both tabs: a matter pinned in one is pinned in the other at once.
   const pins = useMatterPins();
 
@@ -66,7 +67,7 @@ export const FileToMatter: React.FC = () => {
         {hasItem ? (
           <FileToMatterBody key={itemKey} pins={pins} />
         ) : (
-          <Body1 data-testid="file-to-matter-no-item">Select an email to file it to a matter.</Body1>
+          <Body1 data-testid="file-to-matter-no-item">Select one email to file it here, or drag emails onto a matter in My matters.</Body1>
         )}
       </div>
       {mattersShown && (

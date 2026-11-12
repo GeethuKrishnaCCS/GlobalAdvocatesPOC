@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/teams/v1.22/MicrosoftTeams.schema.json#",
   "manifestVersion": "1.22",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "id": "67be1ee8-81ef-4619-a677-6ba5a250439f",
   "localizationInfo": {
     "defaultLanguageTag": "en-us"
@@ -75,7 +75,9 @@
               "id": "ShowFileToMatter",
               "type": "openPage",
               "view": "FileToMatter",
-              "pinnable": true
+              "pinnable": true,
+              "supportsNoItemContext": true,
+              "multiselect": true
             }
           ]
         },
