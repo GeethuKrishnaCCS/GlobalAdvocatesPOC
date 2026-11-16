@@ -2,6 +2,7 @@ using AdvocateDocs.Functions.Auth;
 using AdvocateDocs.Functions.Bundles;
 using AdvocateDocs.Functions.Functions;
 using AdvocateDocs.Functions.Graph;
+using AdvocateDocs.Functions.MatterFolders;
 using AdvocateDocs.Functions.SharePoint;
 using Azure.Core;
 using Azure.Identity;
@@ -28,11 +29,18 @@ var host = new HostBuilder()
         // Managed identity in Azure; developer sign-in (az / Visual Studio) when running locally.
         services.AddSingleton<TokenCredential>(_ => new DefaultAzureCredential(new DefaultAzureCredentialOptions { ExcludeInteractiveBrowserCredential = true }));
         services.AddHttpClient<GraphSiteClient>(c => c.Timeout = TimeSpan.FromMinutes(5));
+        // Matter mail folders act on behalf of the user who pinned the matter, never as the Function itself.
+        services.AddHttpClient(UserGraph.HttpClientName, c => c.Timeout = TimeSpan.FromMinutes(5));
+        services.AddSingleton<UserGraphTokens>();
+        services.AddSingleton<IUserGraph, UserGraph>();
         services.AddHttpClient<SharePointRestClient>();
         services.AddTransient<EmailBundleConverter>();
         services.AddTransient<MemberConverter>();
         services.AddSingleton(_ => new BlobServiceClient(config["AzureWebJobsStorage"]));
         services.AddSingleton<BundleWorkStore>();
+        services.AddSingleton<MatterFolderStore>();
+        services.AddTransient<MatterFolderService>();
+        services.AddTransient<MatterFolderSweeper>();
     })
     .Build();
 

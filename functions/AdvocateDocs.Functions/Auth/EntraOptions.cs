@@ -16,4 +16,10 @@ public sealed class EntraOptions
 
     /// <summary>Delegated scope callers must hold.</summary>
     public string RequiredScope { get; init; } = "user_impersonation";
+
+    /// <summary>
+    /// Client id of the user-assigned managed identity the API app registration trusts as its credential
+    /// (federated identity credential); needed only to act on behalf of users (matter mail folders).
+    /// </summary>
+    public string FederatedIdentityClientId { get; init; } = string.Empty;
 }

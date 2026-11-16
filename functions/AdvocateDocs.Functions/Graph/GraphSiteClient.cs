@@ -19,6 +19,11 @@ public sealed class GraphSiteClient(HttpClient http, TokenCredential credential)
     private const string GraphRoot = "https://graph.microsoft.com/v1.0";
     private static readonly string[] Scopes = ["https://graph.microsoft.com/.default"];
     private const int MaxAttempts = 5;
+    /// <summary>Upload conflict behaviours: overwrite (adds a version) or keep both under a new name.</summary>
+    public const string ConflictReplace = "replace";
+    public const string ConflictRename = "rename";
+    /// <summary>Document library system folder, never a user folder.</summary>
+    private const string FormsFolder = "Forms";
     /// <summary>SharePoint field names are case-sensitive: send property names as written (JsonContent defaults to camelCase).</summary>
     private static readonly JsonSerializerOptions AsWritten = new();
     /// <summary>Upload session chunk: must be a multiple of 320 KiB.</summary>
@@ -91,11 +96,12 @@ public sealed class GraphSiteClient(HttpClient http, TokenCredential credential)
         return await response.Content.ReadAsByteArrayAsync(ct);
     }
 
-    /// <summary>Uploads (replacing, which adds a version) a file of any size to a drive path; returns the drive item and its list item id.</summary>
-    public async Task<(DriveItemRef Item, int ListItemId)> UploadAsync(string driveId, string path, byte[] content, CancellationToken ct)
+    /// <summary>Uploads a file of any size to a drive path (replacing, which adds a version, unless <paramref name="conflictBehavior"/> says otherwise); returns the drive item and its list item id.</summary>
+    public async Task<(DriveItemRef Item, int ListItemId)> UploadAsync(string driveId, string path, byte[] content, CancellationToken ct,
+        string conflictBehavior = ConflictReplace)
     {
         var session = await PostJsonAsync($"/drives/{driveId}/root:/{EscapePath(path)}:/createUploadSession",
-            new { item = new Dictionary<string, string> { ["@microsoft.graph.conflictBehavior"] = "replace" } }, ct);
+            new { item = new Dictionary<string, string> { ["@microsoft.graph.conflictBehavior"] = conflictBehavior } }, ct);
         var uploadUrl = session["uploadUrl"]!.GetValue<string>();
         JsonObject? item = null;
         for (var start = 0; start < content.Length; start += UploadChunkSize)
@@ -115,6 +121,34 @@ public sealed class GraphSiteClient(HttpClient http, TokenCredential credential)
         var withListItem = await GetJsonAsync($"/drives/{driveId}/items/{itemId}?$select=id,name,webUrl&$expand=listItem($select=id)", ct);
         return (new DriveItemRef(driveId, itemId, withListItem["name"]!.GetValue<string>(), withListItem["webUrl"]!.GetValue<string>()),
             int.Parse(withListItem["listItem"]!["id"]!.GetValue<string>()));
+    }
+
+    /// <summary>Names of the folders directly under a drive root, without the library system folder.</summary>
+    public async Task<IReadOnlyList<string>> ListTopLevelFolderNamesAsync(string driveId, CancellationToken ct)
+    {
+        var names = new List<string>();
+        await foreach (var item in GetPagedAsync($"/drives/{driveId}/root/children?$select=name,folder&$top=200", ct))
+        {
+            var name = item["name"]!.GetValue<string>();
+            if (item["folder"] is not null && !name.Equals(FormsFolder, StringComparison.OrdinalIgnoreCase))
+            {
+                names.Add(name);
+            }
+        }
+        return names;
+    }
+
+    /// <summary>True when a folder exists at the drive path.</summary>
+    public async Task<bool> FolderExistsAsync(string driveId, string path, CancellationToken ct)
+    {
+        try
+        {
+            return (await GetJsonAsync($"/drives/{driveId}/root:/{EscapePath(path)}?$select=id,folder", ct))["folder"] is not null;
+        }
+        catch (GraphRequestException ex) when (ex.Status == HttpStatusCode.NotFound)
+        {
+            return false;
+        }
     }
 
     /// <summary>Deletes a drive item (to the recycle bin); a missing item is not an error.</summary>
@@ -194,7 +228,7 @@ public sealed class GraphSiteClient(HttpClient http, TokenCredential credential)
         }
     }
 
-    private static async Task EnsureSuccessAsync(HttpResponseMessage response, string action)
+    internal static async Task EnsureSuccessAsync(HttpResponseMessage response, string action)
     {
         if (response.IsSuccessStatusCode)
         {
