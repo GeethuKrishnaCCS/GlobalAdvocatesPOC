@@ -207,6 +207,11 @@ function localDistOrigin(): string | undefined {
   return process.env.ADV_E2E_OUTLOOK_LOCAL_DIST ? hostedOrigin() : undefined;
 }
 
+/** ADV_E2E_OUTLOOK_HOSTED=1 (with ADV_E2E_HOSTED_ORIGIN): open the deployed tile and use its real hosted files (no routing). */
+export function outlookHosted(): boolean {
+  return !!process.env.ADV_E2E_OUTLOOK_HOSTED && !!hostedOrigin();
+}
+
 const servingDist = new WeakSet<Page>();
 
 async function serveLocalDist(page: Page, origin: string): Promise<void> {
@@ -228,8 +233,9 @@ export async function openOutlookPane(
 ): Promise<Frame> {
   const distOrigin = localDistOrigin();
   if (distOrigin) await serveLocalDist(page, distOrigin);
-  const origin = distOrigin ?? DEV_SERVER_ORIGIN;
-  const tile = distOrigin ? PROD_TAB : OUTLOOK_DEV_ADDIN;
+  const deployed = distOrigin ?? (outlookHosted() ? hostedOrigin() : undefined);
+  const origin = deployed ?? DEV_SERVER_ORIGIN;
+  const tile = deployed ? PROD_TAB : OUTLOOK_DEV_ADDIN;
   // taskpane.html, not commands.html: in compose Outlook also loads the banner runtime from the dev server.
   const pane = (): Frame | undefined =>
     page.frames().find((f) => f.url().startsWith(`${origin}/taskpane.html`));
@@ -260,9 +266,10 @@ export async function openOutlookPane(
     // only; reloading a compose form would lose the draft under test.
     if (attempt >= 2 && appsButton === "More apps") {
       const selected = page.getByRole("option", { selected: true }).first();
-      const name = await selected.getAttribute("aria-label", { timeout: 5_000 }).catch(() => null);
+      // Without "Unread ": selecting the email marked it read, so its label lost that prefix.
+      const name = (await selected.getAttribute("aria-label", { timeout: 5_000 }).catch(() => null))?.replace(/^Unread /, "");
       await page.reload();
-      await (name ? page.getByRole("option", { name, exact: true }) : page.getByRole("option"))
+      await (name ? page.getByRole("option", { name }) : page.getByRole("option"))
         .first()
         .click({ timeout: 60_000 });
     }

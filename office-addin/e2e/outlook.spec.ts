@@ -6,6 +6,7 @@ import {
   expectFooterVisible,
   graphFromPane,
   openOutlookPane,
+  outlookHosted,
   saveRunScreenshot,
   signIn,
 } from "./sideload";
@@ -25,7 +26,7 @@ import {
 
 
 test.skip(
-  !!process.env.ADV_E2E_NO_DEV_SERVER,
+  !!process.env.ADV_E2E_NO_DEV_SERVER && !outlookHosted(),
   "Outlook runs the DEV add-in from the dev server only"
 );
 
