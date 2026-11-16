@@ -8,28 +8,40 @@ namespace AdvocateDocs.Functions.MatterFolders;
 /// Files mail found in the registered matter mail folders to the matter library as .eml, as the user who pinned the matter, then tags it so it is not filed twice.
 /// A folder's delta link only advances when every message of the round was filed.
 /// </summary>
-public sealed class MatterFolderSweeper(IUserGraph userGraph, MatterFolderStore store, ILogger<MatterFolderSweeper> logger)
+public sealed class MatterFolderSweeper(IUserGraph userGraph, MatterFolderStore store, MatterFolderService matters, ILogger<MatterFolderSweeper> logger)
 {
     public const string FiledCategory = "Filed to matter";
     public const string FolderDeletedError = "Mail folder was deleted; reopen the add-in to recreate it.";
     private const int MaxErrorLength = 200;
 
-    /// <summary>Sweeps every stored matter; one matter's failure never stops the others.</summary>
-    public async Task RunAsync(CancellationToken ct)
+    /// <summary>
+    /// Sweeps one stored matter, optionally renewing its notifications first (daily maintenance). Never run two of these
+    /// for the same matter at once: both would file the same unfiled message. <see cref="MatterSweepEntity"/> serialises them.
+    /// </summary>
+    public async Task SweepStoredAsync(string userId, string matterRef, bool renewSubscriptions, CancellationToken ct)
     {
-        await foreach (var stored in store.ListAsync(null, ct))
+        var stored = await store.GetAsync(userId, matterRef, ct);
+        if (stored is null)
+        {
+            return;
+        }
+        string? renewError = null;
+        if (renewSubscriptions)
         {
             try
             {
-                await SweepMatterAsync(stored.State, ct);
-                // A lost race (the user re-registered or unregistered meanwhile) skips the write; filing is idempotent through the category.
-                await store.SaveAsync(stored.State, stored.ETag, ct);
+                await matters.EnsureSubscriptionsAsync(stored.State, ct);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                logger.LogError(ex, "Sweep failed for user {UserId} matter {MatterRef}", stored.State.UserId, stored.State.MatterRef);
+                renewError = ShortError(ex);
+                logger.LogError(ex, "Notification renewal failed for user {UserId} matter {MatterRef}", userId, matterRef);
             }
         }
+        await SweepMatterAsync(stored.State, ct);
+        stored.State.LastError ??= renewError;
+        // A lost race (the user re-registered or unregistered meanwhile) skips the write; filing is idempotent through the category.
+        await store.SaveAsync(stored.State, stored.ETag, ct);
     }
 
     /// <summary>Sweeps every mapped folder of one matter and updates its state (filed count, last sweep, last error, delta links).</summary>

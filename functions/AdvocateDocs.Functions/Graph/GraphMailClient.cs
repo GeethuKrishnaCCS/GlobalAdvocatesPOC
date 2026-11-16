@@ -102,6 +102,40 @@ public sealed class GraphMailClient(HttpClient http, TokenCredential credential)
         await GraphSiteClient.EnsureSuccessAsync(response, "tag message");
     }
 
+    /// <summary>Subscribes to messages arriving in a mail folder (created; a move into the folder counts) and returns the subscription id.</summary>
+    public async Task<string> CreateSubscriptionAsync(string userId, string folderId, Uri notificationUrl, string clientState,
+        DateTimeOffset expires, CancellationToken ct)
+    {
+        using var response = await SendAsync(HttpMethod.Post, $"{GraphRoot}/subscriptions", new
+        {
+            changeType = "created", notificationUrl = notificationUrl.AbsoluteUri, clientState, // AbsoluteUri keeps %20; ToString() would unescape it
+            resource = $"users/{userId}/mailFolders('{folderId}')/messages", expirationDateTime = expires.ToUniversalTime()
+        }, ct);
+        return (await ReadJsonAsync(response, ct))["id"]!.GetValue<string>();
+    }
+
+    /// <summary>Extends a subscription; false when it no longer exists.</summary>
+    public async Task<bool> RenewSubscriptionAsync(string subscriptionId, DateTimeOffset expires, CancellationToken ct)
+    {
+        using var response = await SendAsync(HttpMethod.Patch, $"{GraphRoot}/subscriptions/{subscriptionId}", new { expirationDateTime = expires.ToUniversalTime() }, ct);
+        if (response.StatusCode == HttpStatusCode.NotFound)
+        {
+            return false;
+        }
+        await GraphSiteClient.EnsureSuccessAsync(response, "renew mail notification");
+        return true;
+    }
+
+    /// <summary>Deletes a subscription; a missing one is not an error.</summary>
+    public async Task DeleteSubscriptionAsync(string subscriptionId, CancellationToken ct)
+    {
+        using var response = await SendAsync(HttpMethod.Delete, $"{GraphRoot}/subscriptions/{subscriptionId}", null, ct);
+        if (response.StatusCode != HttpStatusCode.NotFound)
+        {
+            await GraphSiteClient.EnsureSuccessAsync(response, "delete mail notification");
+        }
+    }
+
     private static string FoldersUrl(string userId, string? parentId)
         => parentId is null ? $"{GraphRoot}/users/{userId}/mailFolders" : $"{GraphRoot}/users/{userId}/mailFolders/{parentId}/childFolders";
 

@@ -27,6 +27,7 @@ public sealed class UserGraphTokens
 
     private readonly ILongRunningWebApi _app;
     private readonly BlobServiceClient _blobs;
+    private BlobContainerClient? _container;
 
     public UserGraphTokens(IOptions<EntraOptions> entra, BlobServiceClient blobs)
     {
@@ -111,9 +112,13 @@ public sealed class UserGraphTokens
 
     private async Task<BlobClient> BlobAsync(TokenCacheNotificationArgs args)
     {
-        var container = _blobs.GetBlobContainerClient(ContainerName);
-        await container.CreateIfNotExistsAsync(cancellationToken: args.CancellationToken);
-        return container.GetBlobClient($"{SessionKey(args.SuggestedCacheKey)}.bin");
+        if (_container is null)
+        {
+            var container = _blobs.GetBlobContainerClient(ContainerName);
+            await container.CreateIfNotExistsAsync(cancellationToken: args.CancellationToken);
+            _container = container;
+        }
+        return _container.GetBlobClient($"{SessionKey(args.SuggestedCacheKey)}.bin");
     }
 
     /// <summary>Keeps the access token until shortly before it expires, so one sweep reads the cache blob once.</summary>

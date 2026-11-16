@@ -1,4 +1,7 @@
 using System.Net;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using AdvocateDocs.Functions.Auth;
 using AdvocateDocs.Functions.Graph;
@@ -7,6 +10,8 @@ using AdvocateDocs.Functions.SharePoint;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Functions.Worker;
+using Microsoft.DurableTask.Client;
+using Microsoft.DurableTask.Client.Entities;
 using Microsoft.Extensions.Options;
 
 namespace AdvocateDocs.Functions.Functions;
@@ -15,9 +20,12 @@ namespace AdvocateDocs.Functions.Functions;
 public sealed record MatterFolderRequest(string? WebUrl, string? DocumentsList);
 
 /// <summary>Pinned matters: mail folders in the caller's mailbox, and the timer that files their mail to the matter library.</summary>
-public sealed partial class MatterFolderFunctions(MatterFolderService matters, MatterFolderStore store, MatterFolderSweeper sweeper,
+public sealed partial class MatterFolderFunctions(MatterFolderService matters, MatterFolderStore store,
     UserGraphTokens tokens, IOptions<SharePointOptions> sharePoint)
 {
+    /// <summary>Reachable without a user token (see <see cref="EntraAuthMiddleware"/>): Graph is the caller.</summary>
+    public const string NotifyFunctionName = "MatterFolderNotify";
+
     [GeneratedRegex("^[A-Za-z0-9_-]([A-Za-z0-9 _-]{0,98}[A-Za-z0-9_-])?$")]
     private static partial Regex MatterRef();
 
@@ -28,7 +36,7 @@ public sealed partial class MatterFolderFunctions(MatterFolderService matters, M
     [Function("PutMatterFolders")]
     public async Task<IActionResult> Put(
         [HttpTrigger(AuthorizationLevel.Anonymous, "put", Route = "matter-folders/{matterRef}")] HttpRequest request,
-        string matterRef, FunctionContext context)
+        string matterRef, [DurableClient] DurableTaskClient durable, FunctionContext context)
     {
         var ct = context.CancellationToken;
         var body = await request.ReadFromJsonAsync<MatterFolderRequest>(ct);
@@ -53,6 +61,11 @@ public sealed partial class MatterFolderFunctions(MatterFolderService matters, M
             // Everything below runs as the caller: no separate access check, SharePoint and Exchange decide.
             await tokens.BeginAsync(userId, bearer, ct);
             var result = await matters.RegisterAsync(userId, upn, matterRef, new Uri(body!.WebUrl!), body.DocumentsList!, ct);
+            if (result.IsSuccess)
+            {
+                // Mail that was already waiting in the folders (re-pin, or moved in while sign-in had expired).
+                await durable.Entities.SignalEntityAsync(MatterSweepEntity.IdFor(userId, matterRef), MatterSweepEntity.SweepOperation, cancellation: ct);
+            }
             return result.IsSuccess
                 ? new OkObjectResult(new { matterRef, folders = result.Value!.Folders.Select(f => new { name = f.Name, mailFolderId = f.MailFolderId }) })
                 : new NotFoundObjectResult(new { error = result.Error });
@@ -117,7 +130,46 @@ public sealed partial class MatterFolderFunctions(MatterFolderService matters, M
         return new OkObjectResult(new { matters = pinned });
     }
 
-    /// <summary>Every minute: files mail found in pinned matter folders to the matter libraries.</summary>
-    [Function("MatterFolderSweep")]
-    public Task Sweep([TimerTrigger("0 * * * * *")] TimerInfo timer, FunctionContext context) => sweeper.RunAsync(context.CancellationToken);
+    /// <summary>
+    /// POST /api/matter-folders/notify?u={oid}&amp;m={matterRef} — called by Microsoft Graph, without a user token, when mail
+    /// arrives in a pinned matter folder. Answers the subscription handshake; otherwise queues a sweep of that matter when
+    /// the notification carries the matter's secret. Always 202 quickly: Graph drops slow endpoints.
+    /// </summary>
+    [Function(NotifyFunctionName)]
+    public async Task<IActionResult> Notify(
+        [HttpTrigger(AuthorizationLevel.Anonymous, "post", Route = MatterFolderService.NotifyRoute)] HttpRequest request,
+        [DurableClient] DurableTaskClient durable, FunctionContext context)
+    {
+        var ct = context.CancellationToken;
+        if (request.Query.TryGetValue("validationToken", out var validationToken))
+        {
+            return new ContentResult { Content = validationToken.ToString(), ContentType = "text/plain", StatusCode = StatusCodes.Status200OK };
+        }
+        string? userId = request.Query["u"], matterRef = request.Query["m"];
+        if (!Guid.TryParse(userId, out _) || matterRef is null || !MatterRef().IsMatch(matterRef))
+        {
+            return new AcceptedResult();
+        }
+        var notifications = (await request.ReadFromJsonAsync<JsonObject>(ct))?["value"] as JsonArray;
+        var secret = (await store.GetAsync(userId, matterRef, ct))?.State.NotificationSecret;
+        if (secret is not null && notifications is not null && notifications.Any(n => IsSecret(n?["clientState"]?.GetValue<string>(), secret)))
+        {
+            await durable.Entities.SignalEntityAsync(MatterSweepEntity.IdFor(userId, matterRef), MatterSweepEntity.SweepOperation, cancellation: ct);
+        }
+        return new AcceptedResult();
+    }
+
+    /// <summary>Once a day: renews every pinned matter's notifications and sweeps it, in case a notification was missed.</summary>
+    [Function("MatterFolderMaintenance")]
+    public async Task Maintain([TimerTrigger("0 30 1 * * *")] TimerInfo timer, [DurableClient] DurableTaskClient durable, FunctionContext context)
+    {
+        await foreach (var stored in store.ListAsync(null, context.CancellationToken))
+        {
+            await durable.Entities.SignalEntityAsync(MatterSweepEntity.IdFor(stored.State.UserId, stored.State.MatterRef),
+                MatterSweepEntity.MaintainOperation, cancellation: context.CancellationToken);
+        }
+    }
+
+    private static bool IsSecret(string? candidate, string secret)
+        => candidate is not null && CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(candidate), Encoding.UTF8.GetBytes(secret));
 }

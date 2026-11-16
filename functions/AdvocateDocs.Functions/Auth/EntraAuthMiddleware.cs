@@ -14,8 +14,8 @@ public sealed class EntraAuthMiddleware(ITokenValidator validator) : IFunctionsW
 {
     public const string PrincipalKey = "CallerPrincipal";
 
-    /// <summary>Functions reachable without a token (health probe only).</summary>
-    private static readonly HashSet<string> AnonymousFunctions = new(StringComparer.OrdinalIgnoreCase) { "Health" };
+    /// <summary>Functions reachable without a token: the health probe, and Graph's mail notifications (checked by a per-matter secret).</summary>
+    private static readonly HashSet<string> AnonymousFunctions = new(StringComparer.OrdinalIgnoreCase) { "Health", Functions.MatterFolderFunctions.NotifyFunctionName };
 
     public async Task Invoke(FunctionContext context, FunctionExecutionDelegate next)
     {

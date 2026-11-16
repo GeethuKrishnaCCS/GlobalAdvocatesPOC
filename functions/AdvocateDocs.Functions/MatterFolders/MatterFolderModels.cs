@@ -13,6 +13,11 @@ public sealed class MappedFolder
 
     /// <summary>Graph delta link of the last fully filed sweep; null = start from the beginning.</summary>
     public string? DeltaLink { get; set; }
+
+    /// <summary>Graph change-notification subscription on this mail folder; null until created.</summary>
+    public string? SubscriptionId { get; set; }
+
+    public DateTimeOffset? SubscriptionExpiresUtc { get; set; }
 }
 
 /// <summary>Stored registration of one matter for one user (blob <c>{UserId}/{MatterRef}.json</c>).</summary>
@@ -28,4 +33,7 @@ public sealed class MatterFolderState
     public int FiledCount { get; set; }
     public DateTimeOffset? LastSweepUtc { get; set; }
     public string? LastError { get; set; }
+
+    /// <summary>Random value Graph echoes as clientState in this matter's notifications; proves they are genuine.</summary>
+    public string? NotificationSecret { get; set; }
 }

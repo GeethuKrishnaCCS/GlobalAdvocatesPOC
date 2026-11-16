@@ -39,7 +39,9 @@ var host = new HostBuilder()
         services.AddSingleton(_ => new BlobServiceClient(config["AzureWebJobsStorage"]));
         services.AddSingleton<BundleWorkStore>();
         services.AddSingleton<MatterFolderStore>();
-        services.AddTransient<MatterFolderService>();
+        // WEBSITE_HOSTNAME: set by the platform (localhost:port locally); Graph posts mail notifications there.
+        services.AddTransient(sp => new MatterFolderService(sp.GetRequiredService<IUserGraph>(), sp.GetRequiredService<MatterFolderStore>(),
+            new Uri($"https://{config["WEBSITE_HOSTNAME"]}/api/")));
         services.AddTransient<MatterFolderSweeper>();
     })
     .Build();

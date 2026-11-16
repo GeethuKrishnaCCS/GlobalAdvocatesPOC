@@ -14,6 +14,7 @@ public sealed class MatterFolderStore(BlobServiceClient blobs)
 {
     private const string ContainerName = "matter-folders";
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    private BlobContainerClient? _container;
 
     public async Task<StoredMatterState?> GetAsync(string userId, string matterRef, CancellationToken ct)
         => await ReadAsync(await ContainerAsync(ct), BlobName(userId, matterRef), ct);
@@ -58,11 +59,16 @@ public sealed class MatterFolderStore(BlobServiceClient blobs)
 
     private static string BlobName(string userId, string matterRef) => $"{userId}/{matterRef}.json";
 
+    /// <summary>Created once per process: a create call on every access was the costliest storage meter.</summary>
     private async Task<BlobContainerClient> ContainerAsync(CancellationToken ct)
     {
-        var container = blobs.GetBlobContainerClient(ContainerName);
-        await container.CreateIfNotExistsAsync(cancellationToken: ct);
-        return container;
+        if (_container is null)
+        {
+            var container = blobs.GetBlobContainerClient(ContainerName);
+            await container.CreateIfNotExistsAsync(cancellationToken: ct);
+            _container = container;
+        }
+        return _container;
     }
 
     private static async Task<StoredMatterState?> ReadAsync(BlobContainerClient container, string name, CancellationToken ct)

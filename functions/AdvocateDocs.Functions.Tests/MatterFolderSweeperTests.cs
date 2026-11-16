@@ -56,13 +56,20 @@ public class MatterFolderSweeperTests
         return Json("{}", HttpStatusCode.NotFound);
     }
 
+    private static readonly Uri ApiBase = new("https://func.test/api/");
+
+    private static MatterFolderService Service(IUserGraph userGraph)
+        => new(userGraph, new MatterFolderStore(new Azure.Storage.Blobs.BlobServiceClient("UseDevelopmentStorage=true")), ApiBase);
+
+    private static MatterFolderSweeper Sweeper(IUserGraph userGraph)
+        => new(userGraph, new MatterFolderStore(new Azure.Storage.Blobs.BlobServiceClient("UseDevelopmentStorage=true")), Service(userGraph), NullLogger<MatterFolderSweeper>.Instance);
+
     private static (MatterFolderSweeper Sweeper, FakeHandler Handler, MatterFolderState State) Arrange(Func<HttpRequestMessage, string, HttpResponseMessage> respond)
     {
         var handler = new FakeHandler(respond);
         var http = new HttpClient(handler);
         var userGraph = new FakeUserGraph(new UserGraphClients(new GraphMailClient(http, new FakeCredential()), new GraphSiteClient(http, new FakeCredential())));
-        var sweeper = new MatterFolderSweeper(userGraph,
-            new MatterFolderStore(new Azure.Storage.Blobs.BlobServiceClient("UseDevelopmentStorage=true")), NullLogger<MatterFolderSweeper>.Instance);
+        var sweeper = Sweeper(userGraph);
         var state = new MatterFolderState
         {
             UserId = "u1", MatterRef = "M-1", DriveId = "d1",
@@ -136,14 +143,37 @@ public class MatterFolderSweeperTests
     public async Task SweepMatterAsync_Should_AskForSignInAndKeepDeltaLink_When_StoredSignInExpired()
     {
         var http = new HttpClient(new FakeHandler((_, _) => Json("{}")));
-        var sweeper = new MatterFolderSweeper(new FakeUserGraph(new UserGraphClients(new GraphMailClient(http, new ExpiredSignIn()), new GraphSiteClient(http, new ExpiredSignIn()))),
-            new MatterFolderStore(new Azure.Storage.Blobs.BlobServiceClient("UseDevelopmentStorage=true")), NullLogger<MatterFolderSweeper>.Instance);
+        var sweeper = Sweeper(new FakeUserGraph(new UserGraphClients(new GraphMailClient(http, new ExpiredSignIn()), new GraphSiteClient(http, new ExpiredSignIn()))));
         var state = new MatterFolderState { UserId = "u1", MatterRef = "M-1", DriveId = "d1", Folders = [new MappedFolder { MailFolderId = "f1", Name = "", DeltaLink = OldLink }] };
 
         await sweeper.SweepMatterAsync(state, CancellationToken.None);
 
         Assert.Equal(UserGraphTokens.SignInRequiredMessage, state.LastError);
         Assert.Equal(OldLink, state.Folders[0].DeltaLink);
+    }
+
+    [Fact]
+    public async Task EnsureSubscriptionsAsync_Should_RenewLiveAndRecreateGone_When_FoldersHaveSubscriptions()
+    {
+        var handler = new FakeHandler((r, _) => r.Method == HttpMethod.Patch
+            ? Json("{}", r.RequestUri!.ToString().EndsWith("/gone") ? HttpStatusCode.NotFound : HttpStatusCode.OK)
+            : Json("""{"id":"new"}""", HttpStatusCode.Created));
+        var http = new HttpClient(handler);
+        var service = Service(new FakeUserGraph(new UserGraphClients(new GraphMailClient(http, new FakeCredential()), new GraphSiteClient(http, new FakeCredential()))));
+        var state = new MatterFolderState
+        {
+            UserId = "u1", MatterRef = "M 1",
+            Folders = [new MappedFolder { MailFolderId = "f1", SubscriptionId = "live" }, new MappedFolder { MailFolderId = "f2", SubscriptionId = "gone" }, new MappedFolder { MailFolderId = "f3" }]
+        };
+
+        await service.EnsureSubscriptionsAsync(state, CancellationToken.None);
+
+        Assert.Equal(["live", "new", "new"], state.Folders.Select(f => f.SubscriptionId));
+        Assert.All(state.Folders, f => Assert.NotNull(f.SubscriptionExpiresUtc));
+        var created = handler.Bodies[handler.Calls.FindIndex(c => c.StartsWith("POST "))];
+        Assert.Contains("https://func.test/api/matter-folders/notify?u=u1&m=M%201", created.Replace("\\u0026", "&"));
+        Assert.Contains(state.NotificationSecret!, created);
+        Assert.Contains("mailFolders('f2')/messages", created.Replace("\\u0027", "'"));
     }
 
     [Fact]
