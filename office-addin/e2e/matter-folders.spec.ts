@@ -280,17 +280,13 @@ test("3. an email moved into a sub-folder is filed to that library folder", asyn
 
 test("4. a filed email is not filed twice", async () => {
   test.setTimeout(6 * 60_000);
-  const taggedAt = Date.now();
-  // Two sweeps after now: the status poll must show a sweep that started over a minute after the tag.
-  await expect
-    .poll(() => Date.parse(latestStatus()?.lastSweepUtc ?? "") >= taggedAt + 61_000, {
-      timeout: SWEEP_WAIT_MS,
-      intervals: [POLL_EVERY_MS],
-      message: `lastSweepUtc did not advance: ${JSON.stringify(latestStatus())}`,
-    })
-    .toBe(true);
-  const names = await filedNames(filingId, subjectOf("Matter"));
-  expect(names).toHaveLength(1);
+  // The sweep that filed "FolderA" (test 3) went over every folder of the matter again, the matter folder included.
+  // The pane's status line (re-read every minute) must reach the two filings, with no third.
+  await expect(pane.getByTestId("matter-folders-status")).toContainText("2 emails filed", {
+    timeout: SWEEP_WAIT_MS,
+  });
+  expect(await filedNames(filingId, subjectOf("Matter"))).toHaveLength(1);
+  expect(await filedNames(folderAId, subjectOf("FolderA"))).toHaveLength(1);
   expect(latestStatus()?.lastError).toBeNull();
 });
 
@@ -302,8 +298,8 @@ test("5. unpin keeps the non-empty folder and stops filing", async () => {
   expect((await mailTree()).matter?.id, "matter mail folder still exists").toBe(mailMatterId);
 
   await createAndMove("Waiting", mailMatterId);
-  // Negative check: nothing to poll for, so wait out two+ sweeps (the backend sweeps once a minute).
-  await page.waitForTimeout(150_000);
+  // Negative check: nothing to poll for. Filing follows a move within seconds (change notification), so 45 s is ample.
+  await page.waitForTimeout(45_000);
   const subject = subjectOf("Waiting");
   expect(await filedNames(filingId, subject)).toEqual([]);
   const msgs = await bySubject(mailMatterId, subject);
