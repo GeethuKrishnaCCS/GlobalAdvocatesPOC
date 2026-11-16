@@ -16,6 +16,10 @@ export const GRAPH_SCOPES = [
  */
 export const SHAREPOINT_SCOPES = ["https://ccsdev01.sharepoint.com/AllSites.Write"];
 
+/** Mailbox-folder backend (Azure Function) and its delegated scope; tenant-specific, like the ids above. */
+export const API_BASE_URL = "https://func-advtest-docs-poc.azurewebsites.net/api";
+export const API_SCOPES = [`api://${ENTRA_CLIENT_ID}/user_impersonation`];
+
 /** Task pane views, selected by the `view` query parameter of the manifest page URL. */
 export enum PaneView {
   SaveToMatter = "save",

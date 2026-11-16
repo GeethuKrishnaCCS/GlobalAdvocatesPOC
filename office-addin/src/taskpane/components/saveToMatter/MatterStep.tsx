@@ -1,6 +1,6 @@
 import * as React from "react";
-import { Body1, Button, Caption1, SearchBox, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
-import { Briefcase20Regular, Pin20Filled, Pin20Regular } from "@fluentui/react-icons";
+import { Body1, Button, Caption1, SearchBox, Tooltip, makeStyles, mergeClasses, tokens } from "@fluentui/react-components";
+import { Briefcase20Regular, Mail16Regular, Pin20Filled, Pin20Regular } from "@fluentui/react-icons";
 import type { IMatter } from "../../../shared/services/matterService";
 import { DROP_KEY_ATTRIBUTE, matterDropKey } from "../../../shared/services/mailDrop";
 import { pinnedFirst } from "../../../shared/services/matterPins";
@@ -13,6 +13,7 @@ const useStyles = makeStyles({
   row: { display: "flex", alignItems: "center" },
   item: { justifyContent: "flex-start", textAlign: "start", flexGrow: 1, minWidth: 0 },
   pin: { flexShrink: 0 },
+  mail: { flexShrink: 0, color: tokens.colorNeutralForeground3 },
   pinned: { color: tokens.colorBrandForeground1 },
   text: { display: "flex", flexDirection: "column" },
   dropHover: dropHoverStyle,
@@ -31,13 +32,15 @@ export interface IMatterStepProps {
   /** Outlook panes: references of the pinned matters (listed first) and the pin / unpin button of each row. */
   pinned?: ReadonlySet<string>;
   onTogglePin?: (matter: IMatter) => void;
+  /** References of the matters that have a mailbox folder: their row shows a mail icon. */
+  withMailFolder?: ReadonlySet<string>;
 }
 
 const NO_PINS: ReadonlySet<string> = new Set();
 
 /** Step 1: pick the matter (searchable by reference or title). */
 export const MatterStep: React.FC<IMatterStepProps> = (props) => {
-  const { matters, failed, disabled, onSelect, onRetry, droppable, hoverKey, pinned = NO_PINS, onTogglePin } = props;
+  const { matters, failed, disabled, onSelect, onRetry, droppable, hoverKey, pinned = NO_PINS, onTogglePin, withMailFolder } = props;
   const styles = useStyles();
   const [query, setQuery] = React.useState("");
   const shown = React.useMemo(() => {
@@ -87,6 +90,11 @@ export const MatterStep: React.FC<IMatterStepProps> = (props) => {
                 <Caption1 data-testid={`matter-step-title-${testIdPart(m.ref)}`}>{m.title}</Caption1>
               </span>
             </Button>
+            {withMailFolder?.has(m.ref) && (
+              <Tooltip content="Has a mailbox folder" relationship="label">
+                <Mail16Regular className={styles.mail} data-testid={`matter-step-mailfolder-${testIdPart(m.ref)}`} />
+              </Tooltip>
+            )}
             {onTogglePin && (
               <Button
                 appearance="subtle"

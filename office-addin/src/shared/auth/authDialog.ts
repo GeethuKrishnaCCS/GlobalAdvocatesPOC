@@ -3,7 +3,7 @@ import {
   type AuthenticationResult,
   type IPublicClientApplication,
 } from "@azure/msal-browser";
-import { GRAPH_SCOPES, SHAREPOINT_SCOPES } from "../config";
+import { API_SCOPES, GRAPH_SCOPES, SHAREPOINT_SCOPES } from "../config";
 import { msalConfig, REDIRECT_PATH } from "./msalConfig";
 
 /* global Office, window, sessionStorage, URLSearchParams */
@@ -26,10 +26,11 @@ export interface IExpiringToken {
   expiresOn: number;
 }
 
-/** Tokens handed from the sign-in dialog to the pane: Graph, plus SharePoint when that scope is consented. */
+/** Tokens handed from the sign-in dialog to the pane: Graph, plus SharePoint and the backend API when consented. */
 export interface IDialogToken extends IExpiringToken {
   username: string;
   sharePoint?: IExpiringToken;
+  api?: IExpiringToken;
 }
 
 type DialogMessage = { type: "token"; token: IDialogToken } | { type: "error"; message: string };
@@ -99,22 +100,32 @@ function send(message: DialogMessage): void {
   });
 }
 
-/** Adds a SharePoint token from the dialog's MSAL cache when the scope is consented; otherwise the pane uses Graph. */
+/** Token for another resource from the dialog's MSAL cache, or undefined when its scope is not consented. */
+async function silentResource(
+  pca: IPublicClientApplication,
+  scopes: string[],
+  account: NonNullable<AuthenticationResult["account"]>
+): Promise<IExpiringToken | undefined> {
+  try {
+    const result = await pca.acquireTokenSilent({ scopes, account });
+    return { accessToken: result.accessToken, expiresOn: result.expiresOn?.getTime() ?? 0 };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Adds the SharePoint and backend API tokens when their scopes are consented; otherwise the pane lacks them. */
 async function withSharePoint(
   pca: IPublicClientApplication,
   token: IDialogToken,
   result: AuthenticationResult
 ): Promise<IDialogToken> {
   if (!result.account) return token;
-  try {
-    const sp = await pca.acquireTokenSilent({ scopes: SHAREPOINT_SCOPES, account: result.account });
-    return {
-      ...token,
-      sharePoint: { accessToken: sp.accessToken, expiresOn: sp.expiresOn?.getTime() ?? 0 },
-    };
-  } catch {
-    return token;
-  }
+  const [sharePoint, api] = await Promise.all([
+    silentResource(pca, SHAREPOINT_SCOPES, result.account),
+    silentResource(pca, API_SCOPES, result.account),
+  ]);
+  return { ...token, sharePoint, api };
 }
 
 function toToken(result: AuthenticationResult): IDialogToken {

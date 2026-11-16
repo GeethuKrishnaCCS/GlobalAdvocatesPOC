@@ -108,7 +108,7 @@ const FileToMatterBody: React.FC<{ pins: IMatterPins }> = ({ pins }) => {
           onSelect={(m) => void actions.selectMatter(m)}
           onRetry={() => void browser.actions.loadMatters()}
           pinned={pins.state.pinned}
-          onTogglePin={(m) => pins.actions.toggle(m.ref)}
+          onTogglePin={(m) => pins.actions.toggle(m)}
         />
       )}
       {onFolder && location && (

@@ -26,6 +26,8 @@ const CLIENT_MESSAGES: Record<string, string> = {
   interaction_required: "Sign in to continue.",
   sharepoint_consent_required:
     "Global Advocate needs SharePoint permission to set document properties. Ask your administrator to grant consent.",
+  api_consent_required:
+    "Global Advocate needs permission to create mailbox folders. Ask your administrator to grant consent.",
   consent_required:
     "Global Advocate needs permission to your data. Ask your administrator to grant consent.",
   no_network_connectivity: "No network connection. Check your connection and try again.",

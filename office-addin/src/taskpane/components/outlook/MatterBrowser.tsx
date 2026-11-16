@@ -3,6 +3,8 @@ import { Button, Caption1, MessageBar, MessageBarBody, Spinner, makeStyles, merg
 import { ArrowLeft16Regular } from "@fluentui/react-icons";
 import { useDropToFile, type DropTarget, type IDropDestination } from "../../../shared/hooks/useDropToFile";
 import { useMatterFolders } from "../../../shared/hooks/useMatterFolders";
+import { useMatterFolderStatus } from "../../../shared/hooks/useMatterFolderStatus";
+import { folderStatusLine } from "../../../shared/services/matterFolderStatus";
 import type { IMatterPins } from "../../../shared/hooks/useMatterPins";
 import { DROP_KEY_ATTRIBUTE, folderDropKey, matterDropKey } from "../../../shared/services/mailDrop";
 import { MatterStep } from "../saveToMatter/MatterStep";
@@ -14,6 +16,7 @@ import { dropHoverStyle } from "./dropHoverStyle";
 const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalM },
   hint: { color: tokens.colorNeutralForeground3 },
+  folderError: { color: tokens.colorPaletteRedForeground1 },
   back: { alignSelf: "flex-start" },
   // The open folder is itself a drop target: padded so its dashed outline does not touch the rows.
   folder: {
@@ -40,6 +43,19 @@ export const MatterBrowser: React.FC<{ pins: IMatterPins }> = ({ pins }) => {
   React.useEffect(() => {
     void loadMatters();
   }, [loadMatters]);
+
+  const { syncPinned } = pins.actions;
+  React.useEffect(() => {
+    if (matters) syncPinned(matters);
+  }, [matters, syncPinned]);
+
+  const folderStatus = useMatterFolderStatus(pins.state.pinned.size > 0, pins.state.withMailFolder).state;
+  const folderLine = folderStatusLine(
+    folderStatus.status,
+    pins.state.pinned,
+    folderStatus.checkedAt,
+    pins.state.folderError ?? folderStatus.error
+  );
 
   const resolveTarget = React.useCallback(
     (key: string): DropTarget | undefined => {
@@ -73,6 +89,24 @@ export const MatterBrowser: React.FC<{ pins: IMatterPins }> = ({ pins }) => {
         Drag emails from your message list onto a matter or folder to file them. Pin this pane to keep it open while you
         work through your inbox.
       </Caption1>
+      {folderLine && (
+        <Caption1
+          className={mergeClasses(styles.hint, folderLine.isError && styles.folderError)}
+          data-testid="matter-folders-status"
+        >
+          {folderLine.text}
+          {folderLine.isError && (
+            <Button
+              appearance="transparent"
+              size="small"
+              onClick={pins.actions.retry}
+              data-testid="matter-folders-retry"
+            >
+              Retry
+            </Button>
+          )}
+        </Caption1>
+      )}
       {error && (
         <MessageBar intent="error" layout="multiline" data-testid="matter-browser-error">
           <MessageBarBody>{error}</MessageBarBody>
@@ -103,7 +137,8 @@ export const MatterBrowser: React.FC<{ pins: IMatterPins }> = ({ pins }) => {
           droppable
           hoverKey={hoverKey}
           pinned={pins.state.pinned}
-          onTogglePin={(m) => pins.actions.toggle(m.ref)}
+          onTogglePin={(m) => pins.actions.toggle(m)}
+          withMailFolder={pins.state.withMailFolder}
         />
       )}
       {location && (

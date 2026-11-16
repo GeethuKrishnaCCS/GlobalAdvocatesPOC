@@ -4,8 +4,8 @@ import {
   type IPublicClientApplication,
   type SilentRequest,
 } from "@azure/msal-browser";
-import { GRAPH_SCOPES, SHAREPOINT_SCOPES } from "../config";
-import { openAuthDialog, type IDialogToken } from "./authDialog";
+import { API_SCOPES, GRAPH_SCOPES, SHAREPOINT_SCOPES } from "../config";
+import { openAuthDialog, type IDialogToken, type IExpiringToken } from "./authDialog";
 import { msalConfig } from "./msalConfig";
 
 /* global Office, window, localStorage */
@@ -141,31 +141,39 @@ export async function getGraphToken(allowPopup = false): Promise<string> {
 const SHAREPOINT_CONSENT_REQUIRED =
   "sharepoint_consent_required: Global Advocate has no SharePoint permission for this account.";
 
+const API_CONSENT_REQUIRED =
+  "api_consent_required: Global Advocate has no permission to the mailbox-folder service for this account.";
+
 /**
- * SharePoint REST token for the signed-in user (setting document properties without adding a version).
- * Cached token first; otherwise, from a click (`allowPopup`), the sign-in dialog or a brokered popup gets one, which
- * also repairs a sign-in made before the SharePoint scope was consented. Throws when the scope is not consented.
- * Like Graph: nothing slow may run before the dialog opens (user activation).
+ * Token for one extra resource (SharePoint, the backend API). Cached token first; otherwise, from a click
+ * (`allowPopup`), the sign-in dialog or a brokered popup gets one, which also repairs a sign-in made before the scope
+ * was consented. Throws `consentRequired` when the scope is not consented. Like Graph: nothing slow may run before the
+ * dialog opens (user activation).
  */
-export async function getSharePointToken(allowPopup = false): Promise<string> {
+async function getResourceToken(
+  scopes: string[],
+  pick: (token: IDialogToken) => IExpiringToken | undefined,
+  consentRequired: string,
+  allowPopup: boolean
+): Promise<string> {
   const loginHint = await getLoginHint();
   if (!isNaaSupported()) {
-    const valid = (t: IDialogToken | undefined): string | undefined =>
-      t?.sharePoint && t.sharePoint.expiresOn - EXPIRY_BUFFER_MS > Date.now()
-        ? t.sharePoint.accessToken
+    const valid = (t: IDialogToken | undefined): string | undefined => {
+      const resource = t && pick(t);
+      return resource && resource.expiresOn - EXPIRY_BUFFER_MS > Date.now()
+        ? resource.accessToken
         : undefined;
+    };
     const cached = valid(readDialogToken(loginHint));
     if (cached) return cached;
-    // Silent first: the pane's own MSAL session (from ssoSilent) usually gets a SharePoint token without a dialog.
+    // Silent first: the pane's own MSAL session (from ssoSilent) usually gets the token without a dialog.
     try {
       const pca = await getPca();
       const account = pca
         .getAllAccounts()
         .find((a) => a.username.toLowerCase() === loginHint?.toLowerCase());
-      if (account)
-        return (await pca.acquireTokenSilent({ scopes: SHAREPOINT_SCOPES, account })).accessToken;
-      if (loginHint)
-        return (await pca.ssoSilent({ scopes: SHAREPOINT_SCOPES, loginHint })).accessToken;
+      if (account) return (await pca.acquireTokenSilent({ scopes, account })).accessToken;
+      if (loginHint) return (await pca.ssoSilent({ scopes, loginHint })).accessToken;
       throw new Error("interaction_required: sign in to continue.");
     } catch (silentError) {
       // The dialog opens after this await, so Office may first show its own "allow window" prompt (12011 fallback).
@@ -174,7 +182,7 @@ export async function getSharePointToken(allowPopup = false): Promise<string> {
     const token = await openAuthDialog(loginHint);
     saveDialogToken(token);
     const fresh = valid(token);
-    if (!fresh) throw new Error(SHAREPOINT_CONSENT_REQUIRED);
+    if (!fresh) throw new Error(consentRequired);
     return fresh;
   }
   const pca = await getPca();
@@ -182,13 +190,31 @@ export async function getSharePointToken(allowPopup = false): Promise<string> {
     pca.getAllAccounts().find((a) => a.username.toLowerCase() === loginHint?.toLowerCase()) ??
     pca.getAllAccounts()[0];
   try {
-    return (await pca.acquireTokenSilent({ scopes: SHAREPOINT_SCOPES, account })).accessToken;
+    return (await pca.acquireTokenSilent({ scopes, account })).accessToken;
   } catch (silentError) {
     if (!allowPopup) throw silentError;
     try {
-      return (await pca.acquireTokenPopup({ scopes: SHAREPOINT_SCOPES, loginHint })).accessToken;
+      return (await pca.acquireTokenPopup({ scopes, loginHint })).accessToken;
     } catch (e) {
-      throw /consent|AADSTS65001/i.test(String(e)) ? new Error(SHAREPOINT_CONSENT_REQUIRED) : e;
+      throw /consent|AADSTS65001/i.test(String(e)) ? new Error(consentRequired) : e;
     }
   }
+}
+
+/**
+ * SharePoint REST token for the signed-in user (setting document properties without adding a version).
+ * Throws when the scope is not consented.
+ */
+export function getSharePointToken(allowPopup = false): Promise<string> {
+  return getResourceToken(
+    SHAREPOINT_SCOPES,
+    (t) => t.sharePoint,
+    SHAREPOINT_CONSENT_REQUIRED,
+    allowPopup
+  );
+}
+
+/** Token for the mailbox-folder backend API (same Entra app as the add-in). Throws when the scope is not consented. */
+export function getApiToken(allowPopup = false): Promise<string> {
+  return getResourceToken(API_SCOPES, (t) => t.api, API_CONSENT_REQUIRED, allowPopup);
 }
