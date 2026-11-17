@@ -1,0 +1,22 @@
+{
+  "@microsoft/generator-sharepoint": {
+    "whichFolder": "subdir",
+    "solutionName": "advocate-docs",
+    "environment": "spo",
+    "skipFeatureDeployment": false,
+    "useGulp": false,
+    "componentType": "extension",
+    "extensionType": "ListViewCommandSet",
+    "componentName": "DocActions",
+    "plusBeta": false,
+    "isCreatingSolution": true,
+    "nodeVersion": "22.18.0",
+    "sdksVersions": {},
+    "version": "1.23.2",
+    "libraryName": "advocate-docs",
+    "libraryId": "155599bd-3e80-4827-b392-2e152685c72c",
+    "packageManager": "npm",
+    "solutionShortDescription": "advocate-docs description",
+    "isDomainIsolated": false
+  }
+}

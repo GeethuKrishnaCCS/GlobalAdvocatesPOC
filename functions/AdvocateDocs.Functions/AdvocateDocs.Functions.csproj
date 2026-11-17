@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <AzureFunctionsVersion>v4</AzureFunctionsVersion>
+    <OutputType>Exe</OutputType>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>AdvocateDocs.Functions</RootNamespace>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <!-- Microsoft.DurableTask.Analyzers 0.2 needs Roslyn 4.12; SDK 8.0.4xx ships 4.11 (CS9057). Build-time only. -->
+  <Target Name="RemoveIncompatibleDurableAnalyzer" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <Analyzer Remove="@(Analyzer)" Condition="'%(Filename)' == 'Microsoft.DurableTask.Analyzers'" />
+    </ItemGroup>
+  </Target>
+  <ItemGroup>
+    <None Update="host.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Update="local.settings.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Azure.Identity" Version="1.21.0" />
+    <PackageReference Include="Azure.Storage.Blobs" Version="12.30.1" />
+    <PackageReference Include="Microsoft.ApplicationInsights.WorkerService" Version="2.23.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker" Version="2.52.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.ApplicationInsights" Version="2.51.0" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.DurableTask" Version="1.19.2" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Http.AspNetCore" Version="2.1.1" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Extensions.Timer" Version="4.3.1" />
+    <PackageReference Include="Microsoft.Azure.Functions.Worker.Sdk" Version="2.1.0" />
+    <PackageReference Include="Microsoft.IdentityModel.Protocols.OpenIdConnect" Version="8.23.0" />
+    <PackageReference Include="MimeKit" Version="4.18.1" />
+    <PackageReference Include="PdfPig" Version="0.1.16" />
+    <!-- Pinned: 6.2.x is MIT; 6.5.0 is published AGPL-3.0-only with a licence check. Don't upgrade without a licensing decision. -->
+    <PackageReference Include="PDFsharp" Version="6.2.4" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.23.0" />
+  </ItemGroup>
+</Project>

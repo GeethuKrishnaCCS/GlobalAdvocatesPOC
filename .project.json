@@ -11,8 +11,25 @@
       "name": "ccsdev01",
       "tenantId": "20e5d750-9ba4-44bf-a219-f361c9bfe523",
       "url": "https://ccsdev01.sharepoint.com",
-      "solutionSite": "https://ccsdev01.sharepoint.com/sites/ADVTestDocs",
-      "hubSites": []
+      "solutionSite": "https://ccsdev01.sharepoint.com/sites/ADVTestMatter01",
+      "hubSites": [],
+      "azure": {
+        "account": "dev01@ccsdev01.onmicrosoft.com",
+        "subscriptionId": "109e15d6-ccbf-4789-917a-794a9153e21c",
+        "resourceGroup": "rg-advtest-docs-poc",
+        "functionApp": "func-advtest-docs-poc",
+        "location": "centralindia"
+      },
+      "docsApiApp": {
+        "displayName": "ADVTest-DocsApi",
+        "clientId": "daf35d1e-0756-4216-a61d-827d5eca434f",
+        "objectId": "a7bc53c3-d5a5-4ad4-8569-6c67055e6318",
+        "servicePrincipalId": "b8ecb761-7cb0-49e6-9bea-465667cb6b84",
+        "identifierUri": "api://daf35d1e-0756-4216-a61d-827d5eca434f",
+        "scope": "user_impersonation",
+        "certThumbprint": "FBA2FA1079DA7B472386CD5F42D9BA0D056B2696",
+        "certExpires": "2027-10-15"
+      }
     },
     "prod": {
       "name": "",
@@ -22,3 +39,4 @@
     }
   }
 }
+

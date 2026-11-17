@@ -1,0 +1,262 @@
+import * as React from 'react';
+import { Log } from '@microsoft/sp-core-library';
+import { SPHttpClient, type SPHttpClientResponse } from '@microsoft/sp-http';
+import {
+  BaseListViewCommandSet,
+  type Command,
+  type IListViewCommandSetExecuteEventParameters
+} from '@microsoft/sp-listview-extensibility';
+import { PanelHost } from './utils/panelHost';
+import { toSelectedDocuments } from './utils/documentMapper';
+import { PreviewDialog } from './components/PreviewDialog';
+import { BundleBuilderDrawer } from './components/BundleBuilderDrawer';
+import { DocumentQueryService } from './services/DocumentQueryService';
+import { BundleService } from './services/BundleService';
+import { BundleApiService } from './services/BundleApiService';
+import { BundlePickerDialog } from './components/BundlePickerDialog';
+import type { IBundle } from './models/IBundle';
+import type { ISelectedDocument } from './models/ISelectedDocument';
+import type { ISendRequest } from './models/ISend';
+import { GraphFileService } from './services/GraphFileService';
+import { MailDraftService } from './services/MailDraftService';
+import { SendDialog } from './components/SendDialog';
+import { PrintDialog } from './components/PrintDialog';
+import { getEmbedPreviewUrl, isVisio } from './utils/previewUrl';
+
+/** ClientSideComponentProperties: URL names (not titles) of the matter site libraries and lists. */
+export interface IDocActionsCommandSetProperties {
+  documentsLibrary?: string;
+  bundlesLibrary?: string;
+  /** Under /Lists/. */
+  bundleRegistryList?: string;
+  /** Under /Lists/. */
+  bundleItemsList?: string;
+  bundleManifestsLibrary?: string;
+  /** Hidden library for temporary copies made by "send previous version as PDF". */
+  conversionLibrary?: string;
+  /** AdvocateDocs Function base URL, e.g. https://func-….azurewebsites.net */
+  functionBaseUrl?: string;
+  /** Application ID URI of the Function's API app registration (api://{clientId}). */
+  apiResource?: string;
+}
+
+const LOG_SOURCE: string = 'DocActionsCommandSet';
+
+/** Command ids — must match the keys in DocActionsCommandSet.manifest.json. */
+const enum CommandId {
+  Print = 'PRINT',
+  Preview = 'PREVIEW',
+  CreateBundle = 'CREATE_BUNDLE',
+  OpenBundle = 'OPEN_BUNDLE',
+  AddToBundle = 'ADD_TO_BUNDLE',
+  Send = 'SEND',
+  SendAsPdf = 'SEND_AS_PDF',
+  SendVersion = 'SEND_VERSION',
+  SendVersionAs = 'SEND_VERSION_AS'
+}
+
+/** Library kinds the commands care about; anything else shows no commands. */
+const enum LibraryKind {
+  Documents,
+  Bundles,
+  Other
+}
+
+const DEFAULT_DOCUMENTS_LIBRARY: string = 'Documents';
+const DEFAULT_BUNDLES_LIBRARY: string = 'Bundles';
+const DEFAULT_BUNDLE_REGISTRY_LIST: string = 'BundleRegistry';
+const DEFAULT_BUNDLE_ITEMS_LIST: string = 'BundleItems';
+const DEFAULT_BUNDLE_MANIFESTS_LIBRARY: string = 'BundleManifests';
+const DEFAULT_CONVERSION_LIBRARY: string = 'Conversion';
+/** Must match PrintFunctions.MaxItems in the Function. */
+const MAX_PRINT_ITEMS: number = 25;
+
+/** Document actions for the advocate-firm POC, all opened from the library views. */
+export default class DocActionsCommandSet extends BaseListViewCommandSet<IDocActionsCommandSetProperties> {
+  private readonly _panels: PanelHost = new PanelHost();
+
+  public onInit(): Promise<void> {
+    Log.info(LOG_SOURCE, 'Initialized DocActionsCommandSet');
+    this._updateCommandVisibility();
+    this.context.listView.listViewStateChangedEvent.add(this, this._onListViewStateChanged);
+    return Promise.resolve();
+  }
+
+  public onExecute(event: IListViewCommandSetExecuteEventParameters): void {
+    switch (event.itemId) {
+      case CommandId.Print:
+        this._openPrint();
+        break;
+      case CommandId.Preview:
+        this._openPreview();
+        break;
+      case CommandId.CreateBundle:
+        this._openBundleBuilder(toSelectedDocuments(this.context.listView.selectedRows ?? []));
+        break;
+      case CommandId.OpenBundle:
+        this._openBundlePicker('open', []);
+        break;
+      case CommandId.AddToBundle:
+        this._openBundlePicker('add', toSelectedDocuments(this.context.listView.selectedRows ?? []));
+        break;
+      case CommandId.Send:
+        this._openSend({ mode: 'current', asPdf: false });
+        break;
+      case CommandId.SendAsPdf:
+        this._openSend({ mode: 'current', asPdf: true });
+        break;
+      case CommandId.SendVersion:
+        this._openSend({ mode: 'version', asPdf: false });
+        break;
+      case CommandId.SendVersionAs:
+        this._openSend({ mode: 'version', asPdf: true });
+        break;
+      default:
+        throw new Error(`Unknown command: ${event.itemId}`);
+    }
+  }
+
+  protected onDispose(): void {
+    this._panels.close();
+    super.onDispose();
+  }
+
+  private get _webAbsoluteUrl(): string {
+    return this.context.pageContext.web.absoluteUrl;
+  }
+
+  private _openPreview(): void {
+    const documents = toSelectedDocuments(this.context.listView.selectedRows ?? []);
+    this._panels.open(close => React.createElement(PreviewDialog, { webAbsoluteUrl: this._webAbsoluteUrl, documents, onClose: close }));
+  }
+
+  private get _webServerRelativeUrl(): string {
+    return this.context.pageContext.web.serverRelativeUrl.replace(/\/$/, '');
+  }
+
+  private _documentsLibraryUrl(): string {
+    return `${this._webServerRelativeUrl}/${this.properties.documentsLibrary ?? DEFAULT_DOCUMENTS_LIBRARY}`;
+  }
+
+  private _bundleService(): BundleService {
+    const lists: string = `${this._webServerRelativeUrl}/Lists`;
+    return new BundleService(this.context.spHttpClient, this._webAbsoluteUrl,
+      `${lists}/${this.properties.bundleRegistryList ?? DEFAULT_BUNDLE_REGISTRY_LIST}`,
+      `${lists}/${this.properties.bundleItemsList ?? DEFAULT_BUNDLE_ITEMS_LIST}`);
+  }
+
+  private _buildService(): BundleApiService {
+    const p: IDocActionsCommandSetProperties = this.properties;
+    return new BundleApiService(this.context.aadHttpClientFactory, p.apiResource ?? '', p.functionBaseUrl ?? '', this._webAbsoluteUrl, {
+      documents: p.documentsLibrary ?? DEFAULT_DOCUMENTS_LIBRARY,
+      bundles: p.bundlesLibrary ?? DEFAULT_BUNDLES_LIBRARY,
+      registry: p.bundleRegistryList ?? DEFAULT_BUNDLE_REGISTRY_LIST,
+      items: p.bundleItemsList ?? DEFAULT_BUNDLE_ITEMS_LIST,
+      manifests: p.bundleManifestsLibrary ?? DEFAULT_BUNDLE_MANIFESTS_LIBRARY,
+      conversion: p.conversionLibrary ?? DEFAULT_CONVERSION_LIBRARY
+    });
+  }
+
+  /** New bundle from a selection, or an existing saved bundle when `bundle` is given. */
+  private _openBundleBuilder(documents: ISelectedDocument[], bundle?: IBundle): void {
+    const queryService: DocumentQueryService = new DocumentQueryService(
+      this.context.spHttpClient, this._webAbsoluteUrl, this._documentsLibraryUrl());
+    const libraryTitle: string = this._libraryKind() === LibraryKind.Documents ? this.context.listView.list?.title ?? '' : '';
+    this._panels.open(close => React.createElement(BundleBuilderDrawer, {
+      webAbsoluteUrl: this._webAbsoluteUrl, documents, bundle, queryService,
+      bundleService: this._bundleService(), buildService: this._buildService(), libraryTitle: libraryTitle || (this.properties.documentsLibrary ?? DEFAULT_DOCUMENTS_LIBRARY),
+      onClose: close
+    }));
+  }
+
+  private _openBundlePicker(mode: 'open' | 'add', documents: ISelectedDocument[]): void {
+    this._panels.open(close => React.createElement(BundlePickerDialog, {
+      service: this._bundleService(), mode, documents,
+      onOpen: (bundle: IBundle) => this._openBundleBuilder([], bundle),
+      onClose: close
+    }));
+  }
+
+  private _onListViewStateChanged = (): void => {
+    this._updateCommandVisibility();
+    this.raiseOnChange();
+  };
+
+  /** Which matter library this view shows, by URL name (never title). */
+  private _libraryKind(): LibraryKind {
+    const url: string = (this.context.listView.list?.serverRelativeUrl ?? '').toLowerCase();
+    const leaf: string = url.split('/').pop() ?? '';
+    if (leaf === (this.properties.documentsLibrary ?? DEFAULT_DOCUMENTS_LIBRARY).toLowerCase()) { return LibraryKind.Documents; }
+    if (leaf === (this.properties.bundlesLibrary ?? DEFAULT_BUNDLES_LIBRARY).toLowerCase()) { return LibraryKind.Bundles; }
+    return LibraryKind.Other;
+  }
+
+  private _updateCommandVisibility(): void {
+    const selectedCount: number = this.context.listView.selectedRows?.length ?? 0;
+    const kind: LibraryKind = this._libraryKind();
+    const inMatterLibrary: boolean = kind !== LibraryKind.Other;
+
+    this._setVisible(CommandId.Print, inMatterLibrary && selectedCount >= 1 && selectedCount <= MAX_PRINT_ITEMS);
+    this._setVisible(CommandId.Preview, inMatterLibrary && selectedCount >= 1);
+    // No selection needed: documents can be added by folder, filter or search inside the builder.
+    this._setVisible(CommandId.CreateBundle, kind === LibraryKind.Documents);
+    this._setVisible(CommandId.OpenBundle, inMatterLibrary);
+    this._setVisible(CommandId.AddToBundle, kind === LibraryKind.Documents && selectedCount >= 1);
+    // Current version: one or more documents in one email. Previous version: exactly one document.
+    this._setVisible(CommandId.Send, inMatterLibrary && selectedCount >= 1);
+    this._setVisible(CommandId.SendAsPdf, inMatterLibrary && selectedCount >= 1);
+    this._setVisible(CommandId.SendVersion, inMatterLibrary && selectedCount === 1);
+    this._setVisible(CommandId.SendVersionAs, inMatterLibrary && selectedCount === 1);
+  }
+
+  private _setVisible(id: CommandId, visible: boolean): void {
+    const command: Command | undefined = this.tryGetCommand(id);
+    if (command) {
+      command.visible = visible;
+    }
+  }
+
+  /** Outlook draft with the selected documents (Graph, delegated Files.ReadWrite.All + Mail.ReadWrite). */
+  private _openSend(request: ISendRequest): void {
+    const documents: ISelectedDocument[] = toSelectedDocuments(this.context.listView.selectedRows ?? []);
+    const listId: string = this.context.listView.list?.guid.toString() ?? '';
+    const { site, web } = this.context.pageContext;
+    const host: string = new URL(web.absoluteUrl).hostname;
+    this.context.msGraphClientFactory.getClient('3')
+      .then(graph => {
+        const files: GraphFileService = new GraphFileService(graph, `${host},${site.id.toString()},${web.id.toString()}`, listId,
+          () => this._getListId(`${this._webServerRelativeUrl}/${this.properties.conversionLibrary ?? DEFAULT_CONVERSION_LIBRARY}`));
+        this._panels.open(close => React.createElement(SendDialog, {
+          files, mail: new MailDraftService(graph), documents, request,
+          webOrigin: new URL(web.absoluteUrl).origin,
+          locale: this.context.pageContext.cultureInfo.currentUICultureName,
+          onClose: close
+        }));
+      })
+      .catch((error: Error) => Log.error(LOG_SOURCE, error));
+  }
+
+  /** One PDF of the selection for the browser's print dialog; a lone Visio drawing opens in Visio for the web, which prints it. */
+  private _openPrint(): void {
+    const documents: ISelectedDocument[] = toSelectedDocuments(this.context.listView.selectedRows ?? []);
+    if (documents.length === 1 && isVisio(documents[0].fileType)) {
+      window.open(getEmbedPreviewUrl(this._webAbsoluteUrl, documents[0].uniqueId, documents[0].fileType), '_blank', 'noopener');
+      return;
+    }
+    const itemIds: number[] = documents.map(d => d.id);
+    this._panels.open(close => React.createElement(PrintDialog, { api: this._buildService(), itemIds, onClose: close }));
+  }
+
+  /** List id by server-relative URL (hidden lists included). */
+  private async _getListId(serverRelativeUrl: string): Promise<string> {
+    const url: string = `${this._webAbsoluteUrl}/_api/web/GetList(@l)?@l='${encodeURIComponent(serverRelativeUrl.replace(/'/g, "''"))}'&$select=Id`;
+    const response: SPHttpClientResponse = await this.context.spHttpClient.get(url, SPHttpClient.configurations.v1,
+      { headers: { accept: 'application/json;odata=nometadata' } });
+    if (!response.ok) {
+      throw new Error(`Library ${serverRelativeUrl} not found on this site (HTTP ${response.status}).`);
+    }
+    const body: { Id: string } = await response.json();
+    return body.Id;
+  }
+}
+
