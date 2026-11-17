@@ -10,10 +10,50 @@ export const GRAPH_SCOPES = [
   "https://graph.microsoft.com/Mail.ReadWrite",
 ];
 
+/**
+ * Delegated SharePoint scope for REST calls Graph cannot do (setting library fields without adding a version).
+ * Optional: without consent for it the add-in falls back to Graph. Tenant-specific, like the ids above.
+ */
+export const SHAREPOINT_SCOPES = ["https://ccsdev01.sharepoint.com/AllSites.Write"];
+
+/** Mailbox-folder backend (Azure Function) and its delegated scope; tenant-specific, like the ids above. */
+export const API_BASE_URL = "https://func-advtest-docs-poc.azurewebsites.net/api";
+export const API_SCOPES = [`api://${ENTRA_CLIENT_ID}/user_impersonation`];
+
 /** Task pane views, selected by the `view` query parameter of the manifest page URL. */
 export enum PaneView {
   SaveToMatter = "save",
   SendAsAttachment = "send",
+  /** Outlook read: file the email + attachments. */
   FileToMatter = "file",
+  /** Outlook compose: attach matter documents. */
   AttachFromMatter = "attach",
 }
+
+/** Matter sites are the sites whose URL alias starts with this (test marker on dev; firm's matter site prefix in prod). */
+export const MATTER_SITE_SEARCH = "ADVTestMatter";
+/** Matter document library, by list URL name (language-independent, unlike the display name). */
+export const MATTER_LIBRARY_NAME = "ADVTestDocuments";
+
+/** Document type choices (values already used in the matter library's DocType column). */
+export const DOCUMENT_TYPES = [
+  "Affidavit",
+  "Contract",
+  "Correspondence",
+  "Evidence",
+  "Order",
+  "Pleading",
+];
+/** AdvDirection column choices. */
+export const DIRECTIONS = ["Inward", "Outward"];
+
+/** Matter folder that filed correspondence (sent emails) goes to, relative to the matter library root. */
+export const FILING_FOLDER_PATH = "Correspondence/Matter";
+/**
+ * Draft extended property naming the folder the sent email should be filed to ("driveId|itemId"); Outlook
+ * "File to Matter" reads it to pre-fill matter and folder.
+ */
+export const FILE_TO_FOLDER_PROPERTY_ID =
+  "String {8997e24e-72ed-4959-b04f-1912c4f5bd9d} Name AdvFileToFolder";
+/** Outlook category that tags an email with its matter ("Matter: ADVTestMatter01"). */
+export const MATTER_CATEGORY_PREFIX = "Matter: ";

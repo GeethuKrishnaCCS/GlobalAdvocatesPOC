@@ -1,0 +1,6 @@
+# Playwright: signed-in browser session (never commit), local doc URLs, run output
+.auth/
+e2e/.env
+e2e/out/
+test-results/
+playwright-report/

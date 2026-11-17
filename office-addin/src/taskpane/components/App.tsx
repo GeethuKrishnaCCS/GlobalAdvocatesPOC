@@ -3,6 +3,10 @@ import { Body1, Button, Caption1, MessageBar, MessageBarBody, Spinner, makeStyle
 import { PaneView } from "../../shared/config";
 import { isNaaSupported } from "../../shared/auth/naa";
 import { useSignIn } from "../../shared/hooks/useSignIn";
+import { SaveToMatter } from "./saveToMatter/SaveToMatter";
+import { SendAsAttachment } from "./sendAsAttachment/SendAsAttachment";
+import { FileToMatter } from "./outlook/FileToMatter";
+import { AttachFromMatter } from "./outlook/AttachFromMatter";
 
 export interface IAppProps {
   host: Office.HostType;
@@ -20,7 +24,7 @@ const useStyles = makeStyles({
   root: { display: "flex", flexDirection: "column", gap: tokens.spacingVerticalM, padding: tokens.spacingHorizontalL },
 });
 
-/** Step 0 spike: proves host routing + NAA sign-in + Graph /me in Word and Outlook. */
+/** Pane shell: sign-in, then the view the ribbon button asked for. */
 const App: React.FC<IAppProps> = ({ host, view }) => {
   const styles = useStyles();
   const { state, actions, computed } = useSignIn();
@@ -42,6 +46,10 @@ const App: React.FC<IAppProps> = ({ host, view }) => {
           <MessageBarBody>{state.error}</MessageBarBody>
         </MessageBar>
       )}
+      {state.user && view === PaneView.SaveToMatter && <SaveToMatter host={host} />}
+      {state.user && view === PaneView.SendAsAttachment && <SendAsAttachment host={host} />}
+      {state.user && view === PaneView.FileToMatter && <FileToMatter />}
+      {state.user && view === PaneView.AttachFromMatter && <AttachFromMatter />}
       {computed.needsSignIn && (
         <Button appearance="primary" onClick={() => void actions.signIn()} data-testid="app-signin-button">
           Sign in

@@ -6,7 +6,19 @@ const HtmlWebpackPlugin = require("html-webpack-plugin");
 const webpack = require("webpack");
 
 const urlDev = "https://localhost:3000/";
-const urlProd = "https://www.contoso.com/"; // CHANGE THIS TO YOUR PRODUCTION DEPLOYMENT LOCATION
+/** Office on the web / SharePoint / Microsoft 365 hosts allowed credentialed CORS to the dev server. */
+const M365_ORIGIN = /^https:\/\/([\w-]+\.)*(officeapps\.live\.com|office\.com|office\.net|sharepoint\.com|cloud\.microsoft)$/;
+// Hosting origin for production builds; set by scripts/Deploy-AdvAddinWeb.ps1.
+const urlProd = process.env.ADV_ADDIN_URL_PROD || "https://www.contoso.com/";
+// Dev sideload and the centrally deployed add-in must not share an Id, or Office treats them as one add-in.
+const MANIFEST_ID_DEV = "34ca07a9-c204-475a-a213-694399a38430";
+const MANIFEST_ID_PROD = "852d67be-2456-421f-a280-251aaa88bb63";
+const DISPLAY_NAME_DEV = "Global Advocate (ADVTest dev)";
+const DISPLAY_NAME_PROD = "Global Advocate";
+// Outlook (MailApp) is its own add-in, so its own Ids; its DEV copy is sideloaded in Outlook on the web.
+const OUTLOOK_ID_DEV = "4e3d806d-ca2c-4ad6-966f-126718db477c";
+const OUTLOOK_ID_PROD = "ed13c06c-9f74-4af3-91e3-9ea841321380";
+const OUTLOOK_NAME_DEV = "Global Advocate DEV";
 
 async function getHttpsOptions() {
   const httpsOptions = await devCerts.getHttpsServerOptions();
@@ -71,14 +83,25 @@ module.exports = async (env, options) => {
             from: "assets/*",
             to: "assets/[name][ext][query]",
           },
+          // Outlook compose banner runtime (event-based activation): copied as is, see src/launchevent.
+          { from: "src/launchevent/launchevent.js", to: "launchevent.js" },
+          { from: "src/launchevent/commands.html", to: "commands.html" },
           {
-            from: "manifest*.json",
+            from: "manifest*.{json,xml}",
             to: "[name]" + "[ext]",
-            transform(content) {
+            // DEV-only Teams package for the E2E account; never hosted.
+            globOptions: { ignore: ["**/manifest.outlook-dev.json"] },
+            transform(content, absoluteFrom) {
               if (dev) {
                 return content;
               } else {
-                return content.toString().replace(new RegExp(urlDev, "g"), urlProd);
+                // Without trailing slash so AppDomain entries are rewritten too.
+                const text = content.toString();
+                const outlook = absoluteFrom.endsWith("manifest.outlook.xml");
+                return (outlook ? text.replaceAll(OUTLOOK_ID_DEV, OUTLOOK_ID_PROD).replaceAll(OUTLOOK_NAME_DEV, DISPLAY_NAME_PROD) : text)
+                  .replaceAll(urlDev.replace(/\/$/, ""), urlProd.replace(/\/$/, ""))
+                  .replaceAll(MANIFEST_ID_DEV, MANIFEST_ID_PROD)
+                  .replaceAll(DISPLAY_NAME_DEV, DISPLAY_NAME_PROD);
               }
             },
           },
@@ -88,10 +111,20 @@ module.exports = async (env, options) => {
         Promise: ["es6-promise", "Promise"],
       }),
     ],
+    // The manifest* copy glob watches the project root; E2E output/session writes would rebuild + reload the pane mid-test.
+    watchOptions: {
+      ignored: ["**/node_modules/**", "**/e2e/**", "**/.auth/**", "**/test-results/**", "**/dist/**", "**/scripts/**"],
+    },
     devServer: {
       hot: true,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
+      // Explicit, else the cross-origin check 403s the ribbon's no-cors <img> icon loads from officeapps.live.com.
+      allowedHosts: ["localhost"],
+      // Office on the web fetches ribbon icons with credentials, which rejects "*": echo Microsoft 365 origins only.
+      headers: (req) => {
+        const origin = req.headers.origin;
+        return origin && M365_ORIGIN.test(origin)
+          ? { "Access-Control-Allow-Origin": origin, "Access-Control-Allow-Credentials": "true", Vary: "Origin" }
+          : { "Access-Control-Allow-Origin": "*" };
       },
       server: {
         type: "https",
